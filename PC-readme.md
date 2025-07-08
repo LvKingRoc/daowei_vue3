@@ -3,6 +3,8 @@
 ## 简介
 道威Vue3项目的PC端是针对桌面环境优化的完整界面，提供全面的功能和高效的操作体验。PC端采用现代化的界面设计，适合在办公环境中进行复杂的业务操作和管理任务。
 
+图片详情：https://gitee.com/LvKingRoc/picture/tree/master/PC
+
 ## 技术实现
 - **前端框架**: Vue 3 + TypeScript
 - **UI组件库**: Element Plus
@@ -72,4 +74,3 @@ npm run dev
 ```bash
 npm run build
 ```
-构建结果位于 `dist` 目录，可部署到任意静态Web服务器 
