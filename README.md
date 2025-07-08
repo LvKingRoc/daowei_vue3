@@ -56,7 +56,7 @@
 
 ## 系统功能
 
-https://raw.githubusercontent.com/LvKingRoc/Picture/refs/heads/main/Over%20Field%202025-05-25%2017-18-57.png
+https://gitee.com/LvKingRoc/picture/raw/master/function/all-function.jpg
 
 ### 认证系统
 - 用户登录
@@ -79,8 +79,10 @@ https://raw.githubusercontent.com/LvKingRoc/Picture/refs/heads/main/Over%20Field
 
 ## 多端支持
 
-https://gitee.com/LvKingRoc/picture/raw/master/home/MB-home.jpg
-https://gitee.com/LvKingRoc/picture/raw/master/home/PC-home.jpg
+PC端图：https://gitee.com/LvKingRoc/picture/raw/master/home/MB-home.jpg
+
+MB端图：https://gitee.com/LvKingRoc/picture/raw/master/home/PC-home.jpg
+
 PC端与移动端界面对比
 
 ### PC端
