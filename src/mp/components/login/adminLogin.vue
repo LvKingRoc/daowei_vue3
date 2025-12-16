@@ -1,117 +1,136 @@
 <template>
   <div class="login">
-    <el-card class="box-card">
-      <div class="card-header">
-        <h1 class="title">管理员登录</h1>
-        <span class="subtitle">深圳市道威塑胶五金制品有限公司</span>
-      </div>
-      <el-form label-position="top" :model="form" ref="formRef" @keyup.enter="login">
-        <el-form-item label="管理员账号" prop="username" :rules="[{ required: true, message: '请输入管理员账号', trigger: 'blur' }]">
-          <el-input v-model="form.username" placeholder="请输入管理员账号" class="custom-input">
-            <template #prefix>
-              <i class="el-icon-user input-icon"></i>
-            </template>
-          </el-input>
-        </el-form-item>
-
-        <el-form-item label="密码" prop="password" :rules="[{ required: true, message: '请输入密码', trigger: 'blur' }]">
-          <el-input type="password" v-model="form.password" placeholder="请输入您的密码" class="custom-input" show-password>
-            <template #prefix>
-              <i class="el-icon-lock input-icon"></i>
-            </template>
-          </el-input>
-        </el-form-item>
-
-        <div class="button-group">
-          <el-button type="primary" @click="login" class="login-btn" :loading="loading">登录</el-button>
-          <el-button plain @click="userLogin" class="user-btn">用户登录</el-button>
-        </div>
-      </el-form>
-    </el-card>
     <div class="decoration">
       <div class="circle circle-1"></div>
       <div class="circle circle-2"></div>
+    </div>
+    <div class="login-card">
+      <div class="card-header">
+        <h1 class="login-title">管理员登录</h1>
+        <p class="login-subtitle">深圳市道威塑胶五金制品有限公司管理系统</p>
+      </div>
+      <van-form @submit="onSubmit">
+        <van-cell-group inset>
+          <van-field
+            v-model="username"
+            name="username"
+            label="账号"
+            placeholder="请输入管理员账号"
+            :rules="[{ required: true, message: '请填写账号' }]"
+          />
+          <van-field
+            v-model="password"
+            type="password"
+            name="password"
+            label="密码"
+            placeholder="请输入密码"
+            :rules="[{ required: true, message: '请填写密码' }]"
+          />
+        </van-cell-group>
+        <div class="button-wrapper">
+          <van-button
+            round
+            block
+            type="primary"
+            native-type="submit"
+            :loading="loading"
+            color="linear-gradient(135deg, #8E2DE2, #4A00E0)"
+          >
+            登录
+          </van-button>
+        </div>
+      </van-form>
+      <div class="form-footer">
+        <router-link class="switch-link" to="/login">切换到用户登录</router-link>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
-import { ElMessage } from 'element-plus';
-import request from '@/core/utils/request';
-import { ResponseHandler } from '@/core/utils/ResponseHandler';
+import { ref, onMounted } from 'vue';
+import { useMpAuthStore } from '@/mp/stores/auth';
 
-// 路由相关
-const router = useRouter();
-const route = useRoute();
+const username = ref('');
+const password = ref('');
+const loading = ref(false);
+const rememberPassword = ref(true);  // 移动端默认记住密码
+const authStore = useMpAuthStore();
 
-// 响应式数据
-const formRef = ref(null); // 表单引用
-const loading = ref(false); // 登录加载状态
+// localStorage 存储键名
+const STORAGE_KEY = 'daowei_admin_login';
 
-// 表单数据
-const form = ref({
-  username: '', // 管理员账号
-  password: ''  // 密码
-});
-
-// 登录方法
-const login = async () => {
+// 加载保存的登录信息
+const loadSavedCredentials = () => {
   try {
-    // 表单验证
-    const valid = await formRef.value.validate();
-    if (!valid) return;
-
-    loading.value = true;
-
-    // 发送登录请求
-    const res = await request.post('/admin/login', {
-      username: form.value.username,
-      password: form.value.password
-    });
-
-    // 使用新的响应处理器
-    const result = ResponseHandler.handle(res, {
-      showSuccessMessage: true,
-      showErrorMessage: true,
-      successMessage: '管理员登录成功',
-      errorMessage: '登录失败，请检查用户名和密码'
-    });
-
-    if (result.success && result.data) {
-      // 保存登录信息到本地存储
-      localStorage.setItem('role', 'admin');
-      localStorage.setItem('token', result.data.token);
-      localStorage.setItem('adminInfo', JSON.stringify(result.data.user));
-
-      // 处理重定向或跳转到管理员首页
-      const redirect = route.query.redirect || '/admin/home';
-      router.push(redirect);
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      username.value = data.username || '';
+      password.value = data.password || '';
+      rememberPassword.value = data.rememberPassword !== false;  // 默认为 true
     }
-  } catch (error) {
-    // 网络错误或其他异常
-    if (error.success === false) {
-      ResponseHandler.handle(error, {
-        showErrorMessage: true,
-        errorMessage: '登录失败，请检查用户名和密码'
-      });
-    } else {
-      ResponseHandler.showError('网络连接失败，请稍后再试');
-    }
-  } finally {
-    loading.value = false;
+  } catch (e) {
+    console.error('加载保存的登录信息失败:', e);
   }
 };
 
-// 跳转到用户登录页面
-const userLogin = () => {
-  router.push('/login');
+// 保存登录信息
+const saveCredentials = () => {
+  if (rememberPassword.value) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      username: username.value,
+      password: password.value,
+      rememberPassword: rememberPassword.value
+    }));
+  } else {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+};
+
+// 页面加载时检查 token 是否有效
+onMounted(async () => {
+  // 加载保存的登录信息
+  loadSavedCredentials();
+
+  const token = localStorage.getItem('token');
+  if (token) {
+    // 校验 token
+    loading.value = true;
+    try {
+      const result = await authStore.verifyToken();
+      if (result.valid) {
+        // token 有效，根据角色跳转
+        if (result.role === 'admin') {
+          window.location.href = '/admin/home';
+        } else {
+          window.location.href = '/user/home';
+        }
+        return;
+      }
+    } catch (e) {
+      console.error('Token校验失败:', e);
+    }
+    loading.value = false;
+  }
+
+  // 只记住账号密码，不自动登录
+});
+
+const onSubmit = async (values) => {
+  loading.value = true;
+  // 保存登录信息
+  saveCredentials();
+  await authStore.login({
+    username: values.username,
+    password: values.password,
+    isAdmin: true
+  });
+  loading.value = false;
 };
 </script>
 
 <style scoped>
-/* 登录页面容器 */
 .login {
   display: flex;
   justify-content: center;
@@ -120,152 +139,51 @@ const userLogin = () => {
   background: linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%);
   position: relative;
   overflow: hidden;
+  padding: 20px 16px;
 }
-
-/* 登录卡片样式 */
-.box-card {
-  width: 90%;
-  max-width: 350px;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-  border: none;
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  padding: 24px 18px 20px;
+  position: relative;
   z-index: 2;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 10px 0;
 }
-
-/* 卡片头部样式 */
 .card-header {
   text-align: center;
-  padding: 15px 0;
-  border-bottom: 1px solid #eee;
-  margin-bottom: 15px;
+  margin-bottom: 18px;
 }
-
-/* 标题样式 */
-.title {
-  font-size: 24px;
+.login-title {
+  margin: 0;
+  font-size: 22px;
   font-weight: 700;
-  color: #2c3e50;
-  margin: 0 0 5px 0;
   background: linear-gradient(45deg, #8E2DE2, #4A00E0);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
-
-/* 副标题样式 */
-.subtitle {
-  font-size: 14px;
+.login-subtitle {
+  margin-top: 6px;
+  font-size: 13px;
   color: #7f8c8d;
-  font-weight: 500;
 }
-
-/* 表单样式 */
-.el-form {
-  padding: 0 20px;
+.button-wrapper {
+  margin-top: 18px;
 }
-
-.el-form-item {
-  margin-bottom: 16px;
+.form-footer {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 13px;
 }
-
-.el-form-item__label {
-  font-weight: 600;
-  color: #2c3e50;
-  margin-bottom: 4px;
-  font-size: 14px;
-  display: block;
+.switch-link {
+  color: #4A00E0;
+  text-decoration: none;
 }
-
-/* 自定义输入框样式 */
-.custom-input {
-  position: relative;
+.switch-link:active {
+  opacity: 0.8;
 }
-
-.custom-input .el-input__inner {
-  border-radius: 8px;
-  border: 1px solid #dcdfe6 !important;
-  padding-left: 35px;
-  height: 40px;
-  transition: border-color 0.3s ease;
-  font-size: 14px;
-}
-
-.custom-input .el-input__inner:focus {
-  border-color: #3498db;
-  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-}
-
-.el-input__inner {
-  border: none !important;
-}
-
-.el-input {
-  border: none !important;
-}
-
-/* 输入框图标样式 */
-.input-icon {
-  color: #7f8c8d;
-  margin-left: 10px;
-  font-size: 16px;
-}
-
-/* 按钮组样式 */
-.button-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 15px;
-  margin-bottom: 10px;
-  width: 100%;
-  align-items: center;
-}
-
-/* 按钮基础样式 */
-.el-button {
-  height: 40px;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  transition: all 0.3s ease;
-  border: none;
-  width: 90%;
-  margin: 0 auto;
-}
-
-/* 登录按钮样式 */
-.login-btn {
-  background: linear-gradient(45deg, #8E2DE2, #4A00E0);
-  color: white;
-  font-size: 16px;
-  box-shadow: 0 4px 10px rgba(142, 45, 226, 0.3);
-}
-
-.login-btn:hover,
-.login-btn:active {
-  background: linear-gradient(45deg, #4A00E0, #8E2DE2);
-  opacity: 0.9;
-}
-
-/* 用户登录按钮样式 */
-.user-btn {
-  background: transparent;
-  color: #606266;
-  font-size: 14px;
-  border: 1px solid #dcdfe6;
-}
-
-.user-btn:hover,
-.user-btn:active {
-  color: #409EFF;
-  border-color: #c6e2ff;
-  background-color: #ecf5ff;
-}
-
-/* 装饰元素样式 */
 .decoration {
   position: absolute;
   width: 100%;
@@ -274,48 +192,29 @@ const userLogin = () => {
   left: 0;
   z-index: 1;
 }
-
 .circle {
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
 }
-
 .circle-1 {
   width: 200px;
   height: 200px;
   top: -70px;
   left: -70px;
 }
-
 .circle-2 {
-  width: 150px;
-  height: 150px;
-  bottom: -50px;
-  right: -50px;
+  width: 160px;
+  height: 160px;
+  bottom: -60px;
+  right: -40px;
 }
-
-/* 针对小屏幕移动设备的额外调整 */
-@media (max-width: 320px) {
-  .title {
-    font-size: 22px;
+@media (max-width: 340px) {
+  .login-card {
+    padding: 20px 14px 18px;
   }
-  
-  .subtitle {
-    font-size: 12px;
-  }
-  
-  .el-button {
-    height: 38px;
-    font-size: 15px;
-  }
-  
-  .box-card {
-    padding: 5px 0;
-  }
-  
-  .el-form {
-    padding: 0 15px;
+  .login-title {
+    font-size: 20px;
   }
 }
 </style>

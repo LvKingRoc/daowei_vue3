@@ -13,15 +13,16 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup>
 import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import Header from '@/pc/components/all/Header.vue';
-import Menu from '@/pc/components/all/Menu.vue';
-import { usePcAuthStore } from '@/pc/stores/auth';
+import Header from '@/pc/components/layout/Header.vue';
+import Menu from '@/pc/components/layout/Menu.vue';
+
+import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
-const authStore = usePcAuthStore();
+const authStore = useAuthStore();
 
 // 计算是否隐藏公共组件
 const hiddenCommonComponents = computed(() => route.meta.hiddenCommonComponents ?? false);

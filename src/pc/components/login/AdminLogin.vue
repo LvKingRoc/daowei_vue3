@@ -22,6 +22,11 @@
           </el-input>
         </el-form-item>
 
+        <div class="login-options">
+          <el-checkbox v-model="rememberPassword">记住密码</el-checkbox>
+          <el-checkbox v-model="autoLogin">自动登录</el-checkbox>
+        </div>
+
         <div class="button-group">
           <el-button plain @click="userLogin" class="user-btn">用户登录</el-button>
           <el-button type="primary" @click="login" class="login-btn" :loading="loading">登录</el-button>
@@ -37,24 +42,91 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { usePcAuthStore } from '@/pc/stores/auth';
+import { useAuthStore } from '@/stores/auth';
 
 // 路由相关
 const router = useRouter();
 const route = useRoute();
-const authStore = usePcAuthStore();
+const authStore = useAuthStore();
 
 // 响应式数据
 const formRef = ref(null); // 表单引用
 const loading = ref(false); // 登录加载状态
+const rememberPassword = ref(false); // 记住密码
+const autoLogin = ref(false); // 自动登录
+
+// localStorage 存储键名
+const STORAGE_KEY = 'daowei_pc_admin_login';
 
 // 表单数据
 const form = ref({
   username: '', // 管理员账号
   password: ''  // 密码
+});
+
+// 加载保存的登录信息
+const loadSavedCredentials = () => {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      form.value.username = data.username || '';
+      form.value.password = data.password || '';
+      rememberPassword.value = data.rememberPassword || false;
+      autoLogin.value = data.autoLogin || false;
+    }
+  } catch (e) {
+    console.error('加载保存的登录信息失败:', e);
+  }
+};
+
+// 保存登录信息
+const saveCredentials = () => {
+  if (rememberPassword.value) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      username: form.value.username,
+      password: form.value.password,
+      rememberPassword: rememberPassword.value,
+      autoLogin: autoLogin.value
+    }));
+  } else {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+};
+
+// 页面加载时检查 token 是否有效
+onMounted(async () => {
+  // 加载保存的登录信息
+  loadSavedCredentials();
+
+  const token = localStorage.getItem('token');
+  if (token) {
+    // 校验 token
+    loading.value = true;
+    try {
+      const result = await authStore.verifyToken();
+      if (result.valid) {
+        // token 有效，根据角色跳转
+        if (result.role === 'admin') {
+          router.replace('/admin/home');
+        } else {
+          router.replace('/user/home');
+        }
+        return;
+      }
+    } catch (e) {
+      console.error('Token校验失败:', e);
+    }
+    loading.value = false;
+  }
+
+  // 如果启用了自动登录且有保存的凭据，自动执行登录
+  if (autoLogin.value && form.value.username && form.value.password) {
+    login();
+  }
 });
 
 // 登录方法
@@ -64,7 +136,10 @@ const login = async () => {
     const valid = await formRef.value.validate();
     if (!valid) return;
 
-    // 使用PC端auth store进行登录
+    // 保存登录信息
+    saveCredentials();
+
+    // 使用PC端 auth store进行登录
     const success = await authStore.login({
       username: form.value.username,
       password: form.value.password,
@@ -192,6 +267,14 @@ const userLogin = () => {
   color: #7f8c8d;
   margin-left: 10px;
   font-size: 16px;
+}
+
+/* 登录选项样式 */
+.login-options {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 5px;
+  margin-bottom: 10px;
 }
 
 /* 按钮组样式 */

@@ -7,15 +7,15 @@
     
     <!-- 其他页面使用主布局 -->
     <template v-else>
-      <main-layout />
+      <MainLayout />
     </template>
   </div>
 </template>
 
 <script setup>
 import { RouterView, useRoute } from 'vue-router';
-import { computed, onMounted, getCurrentInstance } from 'vue';
-import MainLayout from './components/all/mainLayout.vue';
+import { computed, getCurrentInstance } from 'vue';
+import MainLayout from './components/layout/mainLayout.vue';
 import {
   Button,
   Cell,
@@ -39,7 +39,20 @@ import {
   DropdownMenu,
   DropdownItem,
   Tabs,
-  Tab
+  Tab,
+  NavBar,
+  Tabbar,
+  TabbarItem,
+  NoticeBar,
+  Grid,
+  GridItem,
+  Sticky,
+  Card,
+  SwipeCell,
+  Radio,
+  RadioGroup,
+  Stepper,
+  Progress
 } from 'vant';
 import 'vant/lib/index.css';
 
@@ -78,6 +91,19 @@ if (app) {
   app.use(DropdownItem);
   app.use(Tabs);
   app.use(Tab);
+  app.use(NavBar);
+  app.use(Tabbar);
+  app.use(TabbarItem);
+  app.use(NoticeBar);
+  app.use(Grid);
+  app.use(GridItem);
+  app.use(Sticky);
+  app.use(Card);
+  app.use(SwipeCell);
+  app.use(Radio);
+  app.use(RadioGroup);
+  app.use(Stepper);
+  app.use(Progress);
 }
 </script>
 
@@ -92,54 +118,34 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   overflow-x: hidden; /* 防止水平滚动 */
   position: relative; /* 确保定位正确 */
+  background-color: #f7f8fa;
 }
 
 body {
-  overflow-y: auto; /* 允许垂直滚动但控制它 */
+  overflow-y: auto; /* 允许垂直滚动 but control it */
   overscroll-behavior: none; /* 防止页面弹性滚动 */
 }
 
 .mp-app {
   width: 100%;
   min-height: 100vh;
-  background-color: #f5f5f5;
   /* 移动端特有样式 */
   touch-action: pan-y; /* 只允许垂直方向的滚动和触摸 */
   -webkit-overflow-scrolling: touch;
-  overflow-x: hidden; /* 确保内容不会水平溢出 */
-  position: relative; /* 确保内部定位正确 */
-}
-
-/* 移动端全局样式调整 */
-.el-button {
-  padding: 10px 20px;
-}
-
-.el-input__inner {
-  height: 40px;
-}
-
-/* 提高移动端点击区域大小 */
-.el-checkbox__label,
-.el-radio__label {
-  padding-left: 8px;
 }
 
 /* 避免溢出 */
 * {
   box-sizing: border-box;
   max-width: 100%;
-  word-wrap: break-word; /* 确保文本不会溢出容器 */
+  word-wrap: break-word;
 }
 
-/* 修复一些移动端字体问题 */
-input, textarea, select, button {
-  font-size: 16px; /* 避免在iOS上放大 */
+/* Vant 全局样式调整 */
+:root {
+  --van-nav-bar-background: #ffffff;
+  --van-nav-bar-title-text-color: #323233;
+  --van-nav-bar-icon-color: #323233;
+  --van-nav-bar-text-color: #323233;
 }
-
-/* 图片和其他媒体的溢出控制 */
-img, video, canvas, svg {
-  max-width: 100%;
-  height: auto;
-}
-</style> 
+</style>
