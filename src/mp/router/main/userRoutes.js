@@ -1,52 +1,50 @@
 // 懒加载组件
-const ManagementIndex = () => import('@/mp/components/view/management/ManagementIndex.vue');
 const CustomerManagement = () => import('@/mp/components/view/management/CustomerManagement.vue');
 const SampleManagement = () => import('@/mp/components/view/management/SampleManagement.vue');
 const OrderManagement = () => import('@/mp/components/view/management/OrderManagement.vue');
+const ManagementMenu = () => import('@/mp/components/view/management/ManagementIndex.vue');
 
-// 用户路由配置（扁平结构）
+// 用户路由配置
 const userRoutes = [
   {
     path: '/user/management',
-    name: 'UserManagementIndex',
-    component: ManagementIndex,
+    name: 'UserManagement',
+    component: ManagementMenu,
     meta: {
       title: '管理',
       requiresAuth: true,
-      role: 'user'
+      role: 'user',
+      showBack: false
     }
   },
   {
-    path: '/user/management/customerGuanli',
+    path: '/user/management/customer',
     name: 'UserCustomerManagement',
     component: CustomerManagement,
     meta: {
       title: '客户管理',
       requiresAuth: true,
-      role: 'user',
-      showBack: true
+      role: 'user'
     }
   },
   {
-    path: '/user/management/sampleGuanli',
+    path: '/user/management/sample',
     name: 'UserSampleManagement',
     component: SampleManagement,
     meta: {
       title: '样品管理',
       requiresAuth: true,
-      role: 'user',
-      showBack: true
+      role: 'user'
     }
   },
   {
-    path: '/user/management/orderGuanli',
+    path: '/user/management/order',
     name: 'UserOrderManagement',
     component: OrderManagement,
     meta: {
       title: '订单管理',
       requiresAuth: true,
-      role: 'user',
-      showBack: true
+      role: 'user'
     }
   }
 ];

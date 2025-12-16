@@ -63,6 +63,7 @@
                   width="64"
                   height="64"
                   radius="8"
+                  lazy-load
                 />
               </div>
               <div class="order-thumb order-thumb-empty" v-else>

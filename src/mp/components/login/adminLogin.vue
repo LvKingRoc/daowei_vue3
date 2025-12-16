@@ -49,7 +49,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useMpAuthStore } from '@/mp/stores/auth';
+import { usePlatformAuthStore as useMpAuthStore } from '@/stores/platformAuth';
 
 const username = ref('');
 const password = ref('');

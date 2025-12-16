@@ -1,15 +1,17 @@
-import Support from '@/mp/components/view/main/Support.vue';
+// 懒加载组件
+const Support = () => import('@/mp/components/view/main/Support.vue');
 
 // 支持路由配置
 const supportRoutes = [
   {
     path: '/user/support',
-    name: 'Support',
+    name: 'UserSupport',
     component: Support,
     meta: {
-      title: '支持一下',
+      title: '支持',
       requiresAuth: true,
-      role: 'user'
+      role: 'user',
+      showBack: false
     }
   },
   {
@@ -17,10 +19,10 @@ const supportRoutes = [
     name: 'AdminSupport',
     component: Support,
     meta: {
-      title: '支持一下',
+      title: '支持',
       requiresAuth: true,
       role: 'admin',
-      menuGroup: 'profile'
+      showBack: false
     }
   }
 ];

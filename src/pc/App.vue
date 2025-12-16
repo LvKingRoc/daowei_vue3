@@ -19,7 +19,7 @@ import { useRoute } from 'vue-router';
 import Header from '@/pc/components/layout/Header.vue';
 import Menu from '@/pc/components/layout/Menu.vue';
 
-import { useAuthStore } from '@/stores/auth';
+import { usePlatformAuthStore as useAuthStore } from '@/stores/platformAuth';
 
 const route = useRoute();
 const authStore = useAuthStore();

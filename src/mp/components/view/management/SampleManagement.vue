@@ -50,13 +50,14 @@
             <div v-for="item in list" :key="item.id" class="sample-item">
             <van-swipe-cell>
               <div class="sample-card" @click="editItem(item)">
-                <div class="sample-thumb" v-if="getItemImageUrl(item)">
+                <div class="sample-thumb" v-if="getItemImageUrl(item)" @click.stop="previewImage(getItemImageUrl(item))">
                   <van-image
                     :src="getItemImageUrl(item)"
                     fit="cover"
                     width="80"
                     height="80"
                     radius="10"
+                    lazy-load
                   />
                 </div>
                 <div class="sample-thumb sample-thumb-empty" v-else>
@@ -151,6 +152,8 @@
               :max-count="1" 
               :after-read="afterRead" 
               :before-delete="beforeDeleteImage"
+              capture="camera"
+              accept="image/*"
               style="display: none;"
             />
           </div>
@@ -225,7 +228,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
-import { showToast, showDialog } from 'vant';
+import { showToast, showDialog, showImagePreview } from 'vant';
 import { useRouter } from 'vue-router';
 import { sampleApi } from '@/core/api/sample';
 import { customerApi } from '@/core/api/customer';
@@ -312,6 +315,13 @@ const handleScroll = () => {
   }
   
   lastScrollTop.value = scrollTop;
+};
+
+// 图片预览
+const previewImage = (url) => {
+  if (url) {
+    showImagePreview({ images: [url], startPosition: 0 });
+  }
 };
 
 // 方法

@@ -4,9 +4,9 @@
     
     <div class="app-container">
       <router-view v-slot="{ Component }">
-        <transition :name="transitionName" mode="out-in">
+        <keep-alive :max="5">
           <component :is="Component" :key="$route.path" />
-        </transition>
+        </keep-alive>
       </router-view>
     </div>
 
@@ -74,7 +74,7 @@ watch(() => route.path, (to, from) => {
 historyStack.push(route.path);
 </script>
 
-<style scoped lang="scss">
+<style scoped>
 .app-wrapper {
   min-height: 100vh;
   background-color: #f7f8fa;
@@ -85,7 +85,7 @@ historyStack.push(route.path);
   min-height: calc(100vh - 100px);
 }
 
-// 简单的淡入淡出动画
+/* 简单的淡入淡出动画 */
 .slide-left-enter-active,
 .slide-left-leave-active,
 .slide-right-enter-active,

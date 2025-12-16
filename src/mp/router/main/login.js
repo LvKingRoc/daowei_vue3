@@ -1,4 +1,4 @@
-import { getAuthData, defaultRedirects } from '@/mp/router/utils';
+import { getAuthData, defaultRedirects } from '../utils';
 
 const UserLogin = () => import('@/mp/components/login/UserLogin.vue');
 const AdminLogin = () => import('@/mp/components/login/AdminLogin.vue');
@@ -24,9 +24,7 @@ const commonRoutes = [
     meta: { 
       title: '用户登录', 
       role: 'user', 
-      hiddenCommonComponents: true, 
-      layout: 'empty', 
-      hiddenInMenu: true,
+      hideHeader: true,
       hideMenu: true
     }
   },
@@ -37,9 +35,7 @@ const commonRoutes = [
     meta: { 
       title: '管理员登录', 
       role: 'admin', 
-      hiddenCommonComponents: true, 
-      layout: 'empty', 
-      hiddenInMenu: true,
+      hideHeader: true,
       hideMenu: true
     }
   }

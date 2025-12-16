@@ -17,7 +17,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useMpAuthStore } from '@/mp/stores/auth';
+import { usePlatformAuthStore as useMpAuthStore } from '@/stores/platformAuth';
 
 const authStore = useMpAuthStore();
 

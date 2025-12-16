@@ -45,7 +45,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { useAuthStore } from '@/stores/auth';
+import { usePlatformAuthStore as useAuthStore } from '@/stores/platformAuth';
 
 // 路由相关
 const router = useRouter();
