@@ -2,17 +2,23 @@
   <!-- 首页容器 -->
   <div class="home-container">
     <div class="welcome-content">
-      <h1 class="welcome-title">您好，欢迎来到</h1>
-      <h1 class="welcome-main-title">深圳市道威塑胶五金制品有限公司管理系统</h1>
+      <h1 class="welcome-greeting">您好，<span class="user-name">{{ userName }}</span></h1>
+      <h1 class="welcome-main-title">欢迎使用 <span class="system-name">道威管理系统</span></h1>
       <h2 class="welcome-subtitle">请点击下方菜单进入系统</h2>
     </div>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'Home'
-};
+<script setup>
+import { computed } from 'vue';
+import { usePlatformAuthStore } from '@/stores/platformAuth';
+
+const authStore = usePlatformAuthStore();
+
+// 获取用户显示名称
+const userName = computed(() => {
+  return authStore.name || authStore.username || '用户';
+});
 </script>
 
 <style scoped>
@@ -40,21 +46,34 @@ export default {
   hyphens: auto;
 }
 
-.welcome-title {
-  font-size: min(24px, 6vw);
-  color: #4b5563;
+.welcome-greeting {
+  font-size: min(22px, 5.5vw);
+  color: #374151;
   font-weight: normal;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
   overflow-wrap: break-word;
   word-wrap: break-word;
   width: 100%;
 }
 
+.user-name {
+  color: #2563eb;
+  font-weight: 600;
+}
+
 .welcome-main-title {
-  font-size: min(28px, 7vw);
+  font-size: min(22px, 5.5vw);
+  color: #4b5563;
+  font-weight: normal;
+  margin-bottom: 24px;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  width: 100%;
+}
+
+.system-name {
   color: #1d4ed8;
   font-weight: bold;
-  margin-bottom: 24px;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
   overflow-wrap: break-word;
   word-wrap: break-word;

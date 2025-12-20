@@ -7,6 +7,7 @@ import { ref, computed } from 'vue';
 import { authApi } from '@/core/api/auth';
 import ResponseHandler from '@/core/utils/ResponseHandler';
 import { getPlatform } from '@/core/utils/device';
+import { clearAuthData } from '@/core/utils/authUtils';
 
 // 动态获取当前平台的router
 const getRouter = async () => {
@@ -23,6 +24,8 @@ export const usePlatformAuthStore = defineStore('platformAuth', () => {
   // 状态 - 使用 localStorage 保存 token（持久化）
   const token = ref(localStorage.getItem('token'));
   const role = ref(localStorage.getItem('role') || 'user');
+  const name = ref(localStorage.getItem('name') || '');  // 用户显示名称
+  const username = ref(localStorage.getItem('username') || '');  // 用户登录名
   const userInfo = ref(null);
   const loading = ref(false);
 
@@ -81,10 +84,13 @@ export const usePlatformAuthStore = defineStore('platformAuth', () => {
         localStorage.setItem('token', result.data.token);
         localStorage.setItem('role', userRole);
         localStorage.setItem('username', credentials.username);
+        localStorage.setItem('name', result.data.name || credentials.username);  // 保存显示名称
 
         // 更新状态
         token.value = result.data.token;
         role.value = userRole;
+        name.value = result.data.name || credentials.username;
+        username.value = credentials.username;
 
         // 获取router并重定向
         const router = await getRouter();
@@ -119,11 +125,8 @@ export const usePlatformAuthStore = defineStore('platformAuth', () => {
       const previousRole = role.value;
       role.value = 'user';
       
-      // 清除 localStorage
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      localStorage.removeItem('username');
-      localStorage.removeItem('redirectAfterLogin');
+      // 使用统一的清除函数
+      clearAuthData();
       
       // 获取router并重定向
       const router = await getRouter();
@@ -188,11 +191,9 @@ export const usePlatformAuthStore = defineStore('platformAuth', () => {
     }
   };
 
-  // 清除认证信息
+  // 清除认证信息（使用统一的清除函数）
   const clearAuth = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    localStorage.removeItem('username');
+    clearAuthData();
     token.value = null;
     role.value = 'user';
   };
@@ -201,12 +202,16 @@ export const usePlatformAuthStore = defineStore('platformAuth', () => {
   const syncFromStorage = () => {
     token.value = localStorage.getItem('token');
     role.value = localStorage.getItem('role') || 'user';
+    name.value = localStorage.getItem('name') || '';
+    username.value = localStorage.getItem('username') || '';
   };
 
   return {
     // 状态
     token,
     role,
+    name,
+    username,
     userInfo,
     loading,
     

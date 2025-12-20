@@ -83,18 +83,20 @@ const loadSavedCredentials = () => {
   }
 };
 
-// 保存登录信息
+// 保存登录信息（登录成功后调用）
 const saveCredentials = () => {
+  const data = {
+    username: form.value.username,  // 始终保存用户名
+    rememberPassword: rememberPassword.value,
+    autoLogin: autoLogin.value
+  };
+  
+  // 只有勾选“记住密码”时才保存密码
   if (rememberPassword.value) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      username: form.value.username,
-      password: form.value.password,
-      rememberPassword: rememberPassword.value,
-      autoLogin: autoLogin.value
-    }));
-  } else {
-    localStorage.removeItem(STORAGE_KEY);
+    data.password = form.value.password;
   }
+  
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 };
 
 // 页面加载时检查 token 是否有效
@@ -136,7 +138,8 @@ const login = async () => {
     const valid = await formRef.value.validate();
     if (!valid) return;
 
-    // 保存登录信息
+    loading.value = true;
+    // 先保存凭据（因为login成功后会立即跳转页面）
     saveCredentials();
 
     // 使用PC端auth store进行登录
@@ -151,6 +154,8 @@ const login = async () => {
     }
   } catch (error) {
     console.error('登录失败:', error);
+  } finally {
+    loading.value = false;
   }
 };
 

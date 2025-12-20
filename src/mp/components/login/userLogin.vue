@@ -75,17 +75,19 @@ const loadSavedCredentials = () => {
   }
 };
 
-// 保存登录信息
+// 保存登录信息（登录成功后调用）
 const saveCredentials = () => {
+  const data = {
+    username: username.value,  // 始终保存用户名
+    rememberPassword: rememberPassword.value
+  };
+  
+  // 只有勾选“记住密码”时才保存密码
   if (rememberPassword.value) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      username: username.value,
-      password: password.value,
-      rememberPassword: rememberPassword.value
-    }));
-  } else {
-    localStorage.removeItem(STORAGE_KEY);
+    data.password = password.value;
   }
+  
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 };
 
 // 页面加载时检查 token 是否有效
@@ -119,8 +121,9 @@ onMounted(async () => {
 
 const onSubmit = async (values) => {
   loading.value = true;
-  // 保存登录信息
+  // 先保存凭据（因为login成功后会立即跳转页面）
   saveCredentials();
+  
   await authStore.login({
     username: values.username,
     password: values.password,

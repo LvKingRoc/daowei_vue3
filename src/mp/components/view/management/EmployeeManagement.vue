@@ -170,11 +170,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { showToast, showDialog } from 'vant';
 import { employeeApi } from '@/core/api/employee';
 import { fuzzySearch } from '@/core/utils/pinyin';
 import dayjs from 'dayjs';
+import { saveDraft, getDraft, clearDraft, hasDraft, getDraftInfo } from '@/core/utils/formDraft';
+
+// 草稿配置
+const DRAFT_NAME = 'mp_employee';
 
 const isApiSuccess = (response) => {
   if (!response || response.success !== true) return false;
@@ -302,7 +306,7 @@ const onSearchTypeSelect = (action) => {
   onRefresh();
 };
 
-const addEmployee = () => {
+const addEmployee = async () => {
   Object.assign(formData, {
     id: 0,
     name: '',
@@ -312,6 +316,27 @@ const addEmployee = () => {
     idCard: '',
     hireDate: dayjs().format('YYYY-MM-DD')
   });
+  
+  // 检查是否有草稿
+  if (hasDraft(DRAFT_NAME, { isEdit: false })) {
+    const draftInfo = getDraftInfo(DRAFT_NAME);
+    try {
+      await showDialog({
+        title: '发现未保存的草稿',
+        message: `${draftInfo?.timeAgo || '之前'}有未保存的内容，是否恢复？`,
+        showCancelButton: true,
+        confirmButtonText: '恢复草稿',
+        cancelButtonText: '放弃草稿'
+      });
+      const draft = getDraft(DRAFT_NAME, { isEdit: false });
+      if (draft) {
+        Object.assign(formData, draft);
+      }
+    } catch {
+      clearDraft(DRAFT_NAME);
+    }
+  }
+  
   showEditPopup.value = true;
 };
 
@@ -387,6 +412,7 @@ const onSave = async () => {
 
     if (isApiSuccess(response)) {
       showToast('操作成功');
+      clearDraft(DRAFT_NAME);  // 提交成功后清除草稿
       showEditPopup.value = false;
       onRefresh();
     } else {
@@ -396,6 +422,17 @@ const onSave = async () => {
     showToast('操作失败');
   }
 };
+
+// 自动保存草稿（仅新增模式）
+watch(
+  () => ({ ...formData }),
+  (newData) => {
+    if (!newData.id && showEditPopup.value) {
+      saveDraft(DRAFT_NAME, newData, { isEdit: false });
+    }
+  },
+  { deep: true }
+);
 
 onMounted(() => {
   onRefresh();

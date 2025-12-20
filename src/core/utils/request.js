@@ -52,104 +52,106 @@ service.interceptors.request.use(
   }
 );
 
+// 显示消息（自动适配PC/MP端）
+const showMessage = (message, type = 'error') => {
+  // 动态导入消息组件
+  const isMobile = window.innerWidth <= 768 || /Mobile|Android|iPhone/i.test(navigator.userAgent);
+  if (isMobile) {
+    import('vant').then(({ showToast, showDialog }) => {
+      if (type === 'error' && message.includes('登录')) {
+        showDialog({ title: '提示', message, confirmButtonText: '确定' });
+      } else {
+        showToast({ message, type: type === 'error' ? 'fail' : 'success' });
+      }
+    }).catch(() => alert(message));
+  } else {
+    import('element-plus').then(({ ElMessage, ElMessageBox }) => {
+      if (type === 'error' && message.includes('登录')) {
+        ElMessageBox.alert(message, '提示', { type: 'warning' });
+      } else {
+        ElMessage({ message, type, duration: 3000 });
+      }
+    }).catch(() => alert(message));
+  }
+};
+
+import { clearAuthData, getLoginPath } from '@/core/utils/authUtils';
+
+// 处理认证错误并跳转
+const handleAuthError = (message, reason) => {
+  const currentRole = localStorage.getItem('role') || 'user';
+  clearAuthData();  // 使用统一的清除函数
+  
+  // 显示错误消息
+  showMessage(message, 'error');
+  
+  const redirectPath = currentRole === 'admin' ? '/admin/login' : '/login';
+  const currentPath = window.location.pathname;
+  
+  // 确保不在登录页时才跳转
+  if (currentPath !== redirectPath && !currentPath.includes('/login')) {
+    setTimeout(() => {
+      getRouter().then(r => {
+        if (r) {
+          r.push({
+            path: redirectPath,
+            query: { redirect: currentPath + window.location.search, reason }
+          }).catch(() => window.location.href = redirectPath);
+        } else {
+          window.location.href = redirectPath;
+        }
+      });
+    }, 1500); // 延迟跳转，让用户看到提示
+  }
+};
+
 // 响应拦截器
 service.interceptors.response.use(
   (response) => {
-    // 统一返回ApiResponse格式
     if (response.data && typeof response.data === 'object') {
-      // 检查响应格式是否符合ApiResponse
       const apiResponse = response.data;
       if (apiResponse.success !== undefined && apiResponse.code !== undefined) {
-        // 对于非成功响应，不在拦截器中显示错误，让组件自行处理
         return apiResponse;
       }
-
-      // 兼容旧格式，转换为ApiResponse格式
-      return {
-        success: true,
-        message: '请求成功',
-        data: response.data,
-        code: 200
-      };
+      return { success: true, message: '请求成功', data: response.data, code: 200 };
     }
-
-    // 默认成功响应
-    return {
-      success: true,
-      message: '请求成功',
-      data: response.data,
-      code: 200
-    };
+    return { success: true, message: '请求成功', data: response.data, code: 200 };
   },
   (error) => {
-    // 构造错误响应
     let errorResponse;
 
     if (error.response) {
-      // 服务器响应错误
       const status = error.response.status;
-      // 检查自定义错误码（如 4011 账号在其他设备登录）
       const customCode = error.response.data?.code;
       let message = '请求失败';
+      let shouldRedirect = false;
+      let reason = '';
 
-      // 处理 4011 错误码：账号在其他设备登录
-      // 处理 4012 错误码：用户不存在或已被删除
-      if (customCode === 4011 || customCode === 4012) {
-        message = customCode === 4011 
-          ? '账号已在其他设备登录，请重新登录' 
-          : '用户不存在或已被删除，请重新登录';
-        const currentRole = localStorage.getItem('role') || 'user';
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        
-        const redirectPath = currentRole === 'admin' ? '/admin/login' : '/login';
-        // 异步获取router并跳转
-        getRouter().then(r => {
-          if (r && r.currentRoute?.value?.path !== redirectPath) {
-            r.push({
-              path: redirectPath,
-              query: { redirect: r.currentRoute.value.fullPath, reason: customCode === 4011 ? 'kicked' : 'deleted' }
-            }).catch(() => window.location.href = redirectPath);
-          } else {
-            window.location.href = redirectPath;
-          }
-        });
+      // 处理自定义错误码
+      if (customCode === 4011) {
+        message = '您的账号已在其他设备登录，当前会话已失效';
+        shouldRedirect = true;
+        reason = 'kicked';
+      } else if (customCode === 4012) {
+        message = '用户不存在或已被删除，请联系管理员';
+        shouldRedirect = true;
+        reason = 'deleted';
+      } else if (customCode === 4013) {
+        message = '登录凭证已过期，请重新登录';
+        shouldRedirect = true;
+        reason = 'expired';
       } else {
         switch (status) {
           case 400:
-            message = '请求错误，请检查输入数据';
+            message = error.response.data?.message || '请求参数错误';
             break;
           case 401:
             message = '登录已过期，请重新登录';
-            // 处理401错误：先获取 role 再清除
-            {
-              const currentRole = localStorage.getItem('role') || 'user';
-              localStorage.removeItem('token');
-              localStorage.removeItem('role');
-              localStorage.removeItem('userInfo');
-              localStorage.removeItem('adminInfo');
-
-              const redirectPath = currentRole === 'admin' ? '/admin/login' : '/login';
-              const currentPath = window.location.pathname;
-
-              // 确保不在登录页时才跳转
-              if (currentPath !== redirectPath && !currentPath.includes('/login')) {
-                // 异步获取router并跳转
-                getRouter().then(r => {
-                  if (r) {
-                    r.push({
-                      path: redirectPath,
-                      query: { redirect: window.location.pathname + window.location.search, reason: 'expired' }
-                    }).catch(() => window.location.href = redirectPath);
-                  } else {
-                    window.location.href = redirectPath;
-                  }
-                });
-              }
-            }
+            shouldRedirect = true;
+            reason = 'expired';
             break;
           case 403:
-            message = '拒绝访问，您没有权限执行此操作';
+            message = '您没有权限执行此操作';
             break;
           case 404:
             message = '请求的资源不存在';
@@ -158,26 +160,29 @@ service.interceptors.response.use(
             message = '服务器错误，请稍后再试';
             break;
           default:
-            message = `请求失败(${status})`;
+            message = error.response.data?.message || `请求失败(${status})`;
         }
+      }
+
+      // 处理需要重定向的认证错误
+      if (shouldRedirect) {
+        handleAuthError(message, reason);
       }
 
       errorResponse = {
         success: false,
         message: error.response.data?.message || message,
         data: null,
-        code: status
+        code: customCode || status
       };
     } else if (error.request) {
-      // 网络错误
       errorResponse = {
         success: false,
-        message: '网络连接失败，请检查网络',
+        message: '网络连接失败，请检查网络后重试',
         data: null,
         code: 0
       };
     } else {
-      // 其他错误
       errorResponse = {
         success: false,
         message: error.message || '未知错误',

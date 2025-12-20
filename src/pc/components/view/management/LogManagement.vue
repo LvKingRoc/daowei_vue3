@@ -3,8 +3,8 @@
     <!-- 搜索区域 -->
     <el-card class="search-card" shadow="never">
       <el-form :inline="true" :model="searchForm" class="search-form">
-        <el-form-item label="用户名">
-          <el-input v-model="searchForm.username" placeholder="请输入用户名" clearable style="width: 150px" />
+        <el-form-item label="操作人">
+          <el-input v-model="searchForm.operatorName" placeholder="请输入操作人名称" clearable style="width: 150px" />
         </el-form-item>
         <el-form-item label="模块">
           <el-select v-model="searchForm.module" placeholder="请选择模块" clearable style="width: 150px">
@@ -51,18 +51,22 @@
       <template #header>
         <div class="card-header">
           <span>操作日志列表</span>
-          <el-button type="danger" size="small" @click="handleCleanLogs">
-            <el-icon><Delete /></el-icon>清理30天前日志
-          </el-button>
+          <div>
+            <el-button type="warning" size="small" @click="handleCleanLoginLogs" style="margin-right: 8px;">
+              <el-icon><Delete /></el-icon>清除所有登录日志
+            </el-button>
+            <el-button type="danger" size="small" @click="handleCleanLogs">
+              <el-icon><Delete /></el-icon>清理30天前日志
+            </el-button>
+          </div>
         </div>
       </template>
 
       <el-table :data="logList" v-loading="loading" stripe border style="width: 100%">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="用户" width="100">
+        <el-table-column prop="operatorName" label="操作人" width="100">
           <template #default="{ row }">
             <el-tag :type="row.role === 'admin' ? 'danger' : 'primary'" size="small">
-              {{ row.username || '未知' }}
+              {{ row.operatorName || '未知' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -82,9 +86,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="requestUrl" label="请求路径" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="ipAddress" label="IP地址" width="130" />
-        <el-table-column prop="status" label="状态" width="80" align="center">
+                <el-table-column prop="status" label="状态" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
               {{ row.status === 1 ? '成功' : '失败' }}
@@ -124,7 +126,7 @@
     <el-dialog v-model="detailVisible" title="日志详情" width="700px">
       <el-descriptions :column="2" border>
         <el-descriptions-item label="日志ID">{{ currentLog.id }}</el-descriptions-item>
-        <el-descriptions-item label="用户">{{ currentLog.username }}</el-descriptions-item>
+        <el-descriptions-item label="操作人">{{ currentLog.operatorName }}</el-descriptions-item>
         <el-descriptions-item label="角色">{{ currentLog.role }}</el-descriptions-item>
         <el-descriptions-item label="模块">{{ currentLog.module }}</el-descriptions-item>
         <el-descriptions-item label="操作类型">{{ getActionLabel(currentLog.action) }}</el-descriptions-item>
@@ -195,7 +197,7 @@ import dayjs from 'dayjs';
 
 // 搜索表单
 const searchForm = reactive({
-  username: '',
+  operatorName: '',
   module: '',
   action: ''
 });
@@ -224,14 +226,14 @@ const loadData = async () => {
     const params = {
       pageNum: pagination.pageNum,
       pageSize: pagination.pageSize,
-      username: searchForm.username || undefined,
+      operatorName: searchForm.operatorName || undefined,
       module: searchForm.module || undefined,
       action: searchForm.action || undefined,
       startTime: dateRange.value?.[0] || undefined,
       endTime: dateRange.value?.[1] || undefined
     };
 
-    const hasCondition = searchForm.username || searchForm.module || searchForm.action || dateRange.value?.length;
+    const hasCondition = searchForm.operatorName || searchForm.module || searchForm.action || dateRange.value?.length;
     const res = hasCondition
       ? await logApi.search(params)
       : await logApi.getList(pagination.pageNum, pagination.pageSize);
@@ -255,7 +257,7 @@ const handleSearch = () => {
 
 // 重置
 const handleReset = () => {
-  searchForm.username = '';
+  searchForm.operatorName = '';
   searchForm.module = '';
   searchForm.action = '';
   dateRange.value = [];
@@ -304,6 +306,24 @@ const handleCleanLogs = async () => {
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('清理失败');
+    }
+  }
+};
+
+// 清除所有登录日志
+const handleCleanLoginLogs = async () => {
+  try {
+    await ElMessageBox.confirm('确定要清除所有登录操作日志吗？此操作不可恢复！', '警告', {
+      type: 'warning'
+    });
+    const res = await logApi.cleanLoginLogs();
+    if (res.success) {
+      ElMessage.success(res.message);
+      loadData();
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('清除失败');
     }
   }
 };

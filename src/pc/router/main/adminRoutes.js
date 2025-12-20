@@ -1,4 +1,4 @@
-// 懒加载组件以提高性能（管理视图统一放在 view/management 下）
+// 懒加载组件
 const CustomerManagement = () => import('@/pc/components/view/management/CustomerManagement.vue');
 const SampleManagement = () => import('@/pc/components/view/management/SampleManagement.vue');
 const OrderManagement = () => import('@/pc/components/view/management/OrderManagement.vue');
@@ -6,6 +6,7 @@ const EmployeeManagement = () => import('@/pc/components/view/management/Employe
 const UserManagement = () => import('@/pc/components/view/management/UserManagement.vue');
 const Dashboard = () => import('@/pc/components/view/main/Dashboard.vue');
 const LogManagement = () => import('@/pc/components/view/management/LogManagement.vue');
+const RouterViewWrapper = () => import('@/pc/components/layout/RouterViewWrapper.vue');
 
 // 管理员路由配置
 const adminRoutes = [
@@ -23,6 +24,8 @@ const adminRoutes = [
   {
     path: '/admin/management',
     name: 'Management',
+    component: RouterViewWrapper,
+    redirect: '/admin/management/customer',
     meta: {
       title: '管理',
       requiresAuth: true,
@@ -31,7 +34,7 @@ const adminRoutes = [
     },
     children: [
       {
-        path: 'customerManagement',
+        path: 'customer',
         name: 'CustomerManagement',
         component: CustomerManagement,
         meta: {
@@ -42,7 +45,7 @@ const adminRoutes = [
         }
       },
       {
-        path: 'sampleManagement',
+        path: 'sample',
         name: 'SampleManagement',
         component: SampleManagement,
         meta: {
@@ -53,7 +56,7 @@ const adminRoutes = [
         }
       },
       {
-        path: 'orderManagement',
+        path: 'order',
         name: 'OrderManagement',
         component: OrderManagement,
         meta: {
@@ -64,7 +67,7 @@ const adminRoutes = [
         }
       },
       {
-        path: 'employeeManagement',
+        path: 'employee',
         name: 'EmployeeManagement',
         component: EmployeeManagement,
         meta: {
@@ -75,7 +78,7 @@ const adminRoutes = [
         }
       },
       {
-        path: 'userManagement',
+        path: 'user',
         name: 'UserManagement',
         component: UserManagement,
         meta: {
@@ -86,7 +89,7 @@ const adminRoutes = [
         }
       },
       {
-        path: 'logManagement',
+        path: 'log',
         name: 'LogManagement',
         component: LogManagement,
         meta: {
@@ -100,4 +103,4 @@ const adminRoutes = [
   }
 ];
 
-export default adminRoutes; 
+export default adminRoutes;

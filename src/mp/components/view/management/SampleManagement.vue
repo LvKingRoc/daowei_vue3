@@ -52,13 +52,21 @@
               <div class="sample-card" @click="editItem(item)">
                 <div class="sample-thumb" v-if="getItemImageUrl(item)" @click.stop="previewImage(getItemImageUrl(item))">
                   <van-image
-                    :src="getItemImageUrl(item)"
+                    :src="getItemThumbnailUrl(item)"
                     fit="cover"
                     width="80"
                     height="80"
                     radius="10"
-                    lazy-load
-                  />
+                    :show-loading="true"
+                    :show-error="true"
+                  >
+                    <template #loading>
+                      <van-loading type="spinner" size="20" />
+                    </template>
+                    <template #error>
+                      <van-icon name="photo-fail" size="24" color="#cbd5f5" />
+                    </template>
+                  </van-image>
                 </div>
                 <div class="sample-thumb sample-thumb-empty" v-else>
                   <van-icon name="photo-o" size="24" color="#cbd5f5" />
@@ -227,14 +235,18 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
 import { showToast, showDialog, showImagePreview } from 'vant';
 import { useRouter } from 'vue-router';
 import { sampleApi } from '@/core/api/sample';
 import { customerApi } from '@/core/api/customer';
 import { fuzzySearch } from '@/core/utils/pinyin';
-import { getImageUrl } from '@/config/env.js';
+import { getImageUrl, getThumbnailUrl } from '@/config/env.js';
 import { compressImage, blobToFile, SAMPLE_COMPRESSION_OPTIONS } from '@/core/tools/ImageCompressor.js';
+import { saveDraft, getDraft, clearDraft, hasDraft, getDraftInfo } from '@/core/utils/formDraft';
+
+// 草稿配置
+const DRAFT_NAME = 'mp_sample';
 
 const router = useRouter();
 
@@ -397,7 +409,14 @@ const getItemImageUrl = (item) => {
   return `${getImageUrl(item.image)}?v=${item._v || ''}`;
 };
 
-const addItem = () => {
+// 获取缩略图URL（列表使用，减少流量）
+const getItemThumbnailUrl = (item) => {
+  if (!item || !item.image) return '';
+  return `${getThumbnailUrl(item.image, 80)}${item._v ? '&v=' + item._v : ''}`;
+};
+
+const addItem = async () => {
+  // 重置表单
   Object.assign(formData, {
     id: null,
     model: '',
@@ -410,6 +429,29 @@ const addItem = () => {
   });
   fileList.value = [];
   uploadFile.value = null;
+  
+  // 检查是否有草稿
+  if (hasDraft(DRAFT_NAME, { isEdit: false })) {
+    const draftInfo = getDraftInfo(DRAFT_NAME);
+    try {
+      await showDialog({
+        title: '发现未保存的草稿',
+        message: `${draftInfo?.timeAgo || '之前'}有未保存的内容，是否恢复？`,
+        showCancelButton: true,
+        confirmButtonText: '恢复草稿',
+        cancelButtonText: '放弃草稿'
+      });
+      // 用户选择恢复
+      const draft = getDraft(DRAFT_NAME, { isEdit: false });
+      if (draft) {
+        Object.assign(formData, draft);
+      }
+    } catch {
+      // 用户选择放弃，清除草稿
+      clearDraft(DRAFT_NAME);
+    }
+  }
+  
   showEditPopup.value = true;
 };
 
@@ -495,8 +537,11 @@ const deleteItem = async (item) => {
 };
 
 const addOrder = (item) => {
+  // MP端订单管理路径
+  const role = localStorage.getItem('role');
+  const path = role === 'admin' ? '/admin/management/order' : '/user/management/order';
   router.push({
-    path: '/admin/management/orderManagement', // 或者用户路径，需根据角色判断，这里简化
+    path,
     query: { sampleId: item.id }
   });
 };
@@ -571,6 +616,7 @@ const onSave = async () => {
     
     if (isApiSuccess(response)) {
       showToast(formData.id ? '更新成功' : '创建成功');
+      clearDraft(DRAFT_NAME);  // 提交成功后清除草稿
       showEditPopup.value = false;
       loadSamples();
     } else {
@@ -582,6 +628,18 @@ const onSave = async () => {
     saving.value = false;
   }
 };
+
+// 自动保存草稿（仅新增模式）
+watch(
+  () => ({ ...formData }),
+  (newData) => {
+    // 只有新增模式（id为空）且弹窗打开时才保存草稿
+    if (!newData.id && showEditPopup.value) {
+      saveDraft(DRAFT_NAME, newData, { isEdit: false });
+    }
+  },
+  { deep: true }
+);
 
 onMounted(() => {
   loadCustomers();

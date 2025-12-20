@@ -363,6 +363,8 @@ const handleClickOutside = (event) => {
   }
 };
 
+import { clearAuthData, getLoginPath } from '@/core/utils/authUtils';
+
 // 退出登录
 const logout = () => {
   ElMessageBox.confirm('确定要退出登录吗?', '提示', {
@@ -371,8 +373,8 @@ const logout = () => {
     type: 'warning'
   }).then(() => {
     const role = localStorage.getItem('role');
-    localStorage.clear();
-    router.push(role === 'admin' ? '/admin/login' : '/login');
+    clearAuthData();  // 使用统一的清除函数
+    router.push(getLoginPath(role));
   });
 };
 

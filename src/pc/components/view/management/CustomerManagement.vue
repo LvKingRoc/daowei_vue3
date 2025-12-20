@@ -158,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Plus, Delete } from '@element-plus/icons-vue';
 import PaginationBar from '@/pc/components/common/PaginationBar.vue';
@@ -167,6 +167,11 @@ import '@/pc/components/common/management-common.css';
 import { getPinyin, getPinyinInitials } from '@/core/utils/pinyin';
 import { handleResponse } from '@/core/utils/ResponseHandler';
 import { customerApi } from '@/core/api/customer';
+import { saveDraft, getDraft, clearDraft, hasDraft, getDraftInfo } from '@/core/utils/formDraft';
+import { ElMessageBox } from 'element-plus';
+
+// 草稿配置
+const DRAFT_NAME = 'pc_customer';
 
 // ================================================================================================
 // 常量定义
@@ -418,6 +423,25 @@ const openCustomerDialog = async (customer = null) => {
       addresses: [{ address: '' }],
       contacts: [{ contactName: '', phone: '' }],
     };
+    
+    // 检查是否有草稿
+    if (hasDraft(DRAFT_NAME, { isEdit: false })) {
+      const draftInfo = getDraftInfo(DRAFT_NAME);
+      try {
+        await ElMessageBox.confirm(
+          `${draftInfo?.timeAgo || '之前'}有未保存的内容，是否恢复？`,
+          '发现未保存的草稿',
+          { confirmButtonText: '恢复草稿', cancelButtonText: '放弃草稿', type: 'info' }
+        );
+        const draft = getDraft(DRAFT_NAME, { isEdit: false });
+        if (draft) {
+          formData.value = { ...formData.value, ...draft };
+        }
+      } catch {
+        clearDraft(DRAFT_NAME);
+      }
+    }
+    
     showDialog.value = true;
   }
 };
@@ -557,6 +581,7 @@ const validateAndSave = async () => {
     });
 
     if (result.success) {
+      clearDraft(DRAFT_NAME);  // 提交成功后清除草稿
       showDialog.value = false;
       await loadCustomers();
     }
@@ -572,6 +597,17 @@ const validateAndSave = async () => {
 // ================================================================================================
 // 生命周期钩子
 // ================================================================================================
+
+// 自动保存草稿（仅新增模式）
+watch(
+  () => ({ ...formData.value }),
+  (newData) => {
+    if (!newData.id && showDialog.value) {
+      saveDraft(DRAFT_NAME, newData, { isEdit: false });
+    }
+  },
+  { deep: true }
+);
 
 /**
  * 组件挂载时加载初始数据

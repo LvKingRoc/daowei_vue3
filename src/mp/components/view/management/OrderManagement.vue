@@ -55,60 +55,69 @@
     >
         <div v-for="item in list" :key="item.id" class="order-item">
           <van-swipe-cell>
-            <div class="order-card" @click="showDetail(item)">
-              <div class="order-thumb" v-if="item.image" @click.stop="previewImage(item.image)">
-                <van-image
-                  :src="getImageUrl(item.image)"
-                  fit="cover"
-                  width="64"
-                  height="64"
-                  radius="8"
-                  lazy-load
-                />
-              </div>
-              <div class="order-thumb order-thumb-empty" v-else>
-                <van-icon name="notes-o" size="24" color="#cbd5f5" />
+            <div class="order-card" @click="editOrder(item)">
+              <!-- 左侧：图片 + 状态 -->
+              <div class="order-left">
+                <div class="order-thumb" v-if="item.image" @click.stop="previewImage(item.image)">
+                  <van-image
+                    :src="getImageUrl(item.image)"
+                    fit="cover"
+                    width="72"
+                    height="72"
+                    radius="12"
+                  />
+                </div>
+                <div class="order-thumb order-thumb-empty" v-else>
+                  <van-icon name="notes-o" size="28" color="#cbd5f5" />
+                </div>
+                <van-tag
+                  :type="getStatusTagType(item.status)"
+                  size="small"
+                  class="order-status-tag"
+                >
+                  {{ statusMap[item.status] || '未知' }}
+                </van-tag>
               </div>
 
+              <!-- 右侧：订单信息 -->
               <div class="order-info">
-                <div class="order-number">订单号：{{ item.orderNumber }}</div>
-                <div class="order-company">
-                  客户：{{ item.companyName || '无客户' }}
+                <!-- 订单号 -->
+                <div class="order-row order-number-row">
+                  <span class="order-label">订单号</span>
+                  <span class="order-value order-number-value">{{ item.orderNumber }}</span>
                 </div>
-
-                <div class="order-meta-row">
-                  <span class="order-meta-label">型号：</span>
-                  <span class="order-meta-value">{{ item.model || '无型号' }}</span>
+                
+                <!-- 客户 -->
+                <div class="order-row">
+                  <span class="order-label">客户</span>
+                  <span class="order-value">{{ item.companyName || '无客户' }}</span>
                 </div>
-                <div class="order-meta-row">
-                  <span class="order-meta-label">颜色：</span>
-                  <span class="order-meta-value">{{ item.colorCode || '无颜色' }}</span>
-                </div>
-
-                <div class="order-metrics-row">
-                  <div class="order-metric">
-                    <span class="order-metric-label">数量：</span>
-                    <span class="order-metric-value">{{ item.totalQuantity }}</span>
+                
+                <!-- 型号 + 数量 -->
+                <div class="order-row-dual">
+                  <div class="order-cell">
+                    <span class="order-label">型号</span>
+                    <span class="order-value">{{ item.model || '无' }}</span>
                   </div>
-                  <div class="order-metric">
-                    <span class="order-metric-label">金额：</span>
-                    <span class="order-metric-value order-amount">
-                      {{ item.totalAmount?.toFixed(2) || '0.00' }}
-                    </span>
+                  <div class="order-cell">
+                    <span class="order-label">数量</span>
+                    <span class="order-value">{{ item.totalQuantity }}</span>
                   </div>
                 </div>
-
-                <div class="order-status-row">
-                  <span class="order-status-label">状态：</span>
-                  <van-tag
-                    :type="getStatusTagType(item.status)"
-                    size="small"
-                    plain
-                  >
-                    {{ statusMap[item.status] || '未知' }}
-                  </van-tag>
+                
+                <!-- 颜色 + 金额 -->
+                <div class="order-row-dual">
+                  <div class="order-cell">
+                    <span class="order-label">颜色</span>
+                    <span class="order-value">{{ item.colorCode || '无' }}</span>
+                  </div>
+                  <div class="order-cell">
+                    <span class="order-label">金额</span>
+                    <span class="order-value order-amount">{{ item.totalAmount?.toFixed(2) || '0.00' }}</span>
+                  </div>
                 </div>
-
+                
+                <!-- 操作按钮 -->
                 <div class="order-card-actions">
                   <van-button size="small" plain @click.stop="editOrder(item)">编辑</van-button>
                   <van-button size="small" type="danger" plain @click.stop="deleteOrder(item)">删除</van-button>
@@ -142,17 +151,17 @@
               v-model="formData.model"
               name="model"
               label="型号"
-              placeholder="型号"
-              :readonly="!!formData.id"
-              :disabled="!!formData.id"
+              placeholder="型号（关联样品）"
+              readonly
+              disabled
             />
              <van-field
               v-model="formData.colorCode"
               name="colorCode"
               label="颜色"
-              placeholder="颜色"
-              :readonly="!!formData.id"
-              :disabled="!!formData.id"
+              placeholder="颜色（关联样品）"
+              readonly
+              disabled
             />
             <van-field
               v-model="formData.totalQuantity"
@@ -235,7 +244,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, computed, onMounted, onUnmounted, onActivated, watch } from 'vue';
 import { showToast, showDialog, showImagePreview } from 'vant';
 import { useRoute } from 'vue-router';
 import { orderApi } from '@/core/api/order';
@@ -243,6 +252,10 @@ import { sampleApi } from '@/core/api/sample';
 import { getImageUrl } from '@/config/env.js';
 import { fuzzySearch } from '@/core/utils/pinyin';
 import dayjs from 'dayjs';
+import { saveDraft, getDraft, clearDraft, hasDraft, getDraftInfo } from '@/core/utils/formDraft';
+
+// 草稿配置
+const DRAFT_NAME = 'mp_order';
 
 const isApiSuccess = (response) => {
   if (!response || response.success !== true) return false;
@@ -526,6 +539,7 @@ const onSave = async () => {
 
     if (isApiSuccess(response)) {
       showToast('保存成功');
+      clearDraft(DRAFT_NAME);  // 提交成功后清除草稿
       showEditPopup.value = false;
       onRefresh();
     } else {
@@ -595,9 +609,9 @@ const formatDate = (date) => {
 // 路由
 const route = useRoute();
 
-onMounted(async () => {
+// 处理从样品页面跳转过来的下单逻辑
+const handleSampleIdFromRoute = async () => {
   const sampleId = route.query.sampleId;
-
   if (sampleId) {
     try {
       const response = await sampleApi.getById(sampleId);
@@ -622,11 +636,30 @@ onMounted(async () => {
       showToast('获取样品信息失败');
     }
   }
+};
 
+onMounted(async () => {
+  await handleSampleIdFromRoute();
   onRefresh();
   window.addEventListener('scroll', handleScroll, { passive: true });
   window.addEventListener('mp-refresh', onRefresh);
 });
+
+// KeepAlive缓存时，每次激活都检查是否有新的sampleId
+onActivated(async () => {
+  await handleSampleIdFromRoute();
+});
+
+// 自动保存草稿（仅新增模式）
+watch(
+  () => ({ ...formData }),
+  (newData) => {
+    if (!newData.id && showEditPopup.value) {
+      saveDraft(DRAFT_NAME, newData, { isEdit: false });
+    }
+  },
+  { deep: true }
+);
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
@@ -717,16 +750,25 @@ onUnmounted(() => {
 
 .order-card {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   padding: 16px;
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #f3f4f6;
+  gap: 14px;
+}
+
+/* 左侧区域：图片 + 状态 */
+.order-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .order-thumb {
-  flex-shrink: 0;
   width: 72px;
   height: 72px;
   border-radius: 12px;
@@ -741,71 +783,65 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
 }
 
+.order-status-tag {
+  border-radius: 10px;
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+/* 右侧信息区域 */
 .order-info {
   flex: 1;
   min-width: 0;
-  margin-left: 14px;
-}
-
-.order-number {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 4px;
-  word-break: break-word;
-}
-
-.order-company {
-  font-size: 13px;
-  color: #6b7280;
-  margin-bottom: 6px;
-  word-break: break-word;
-}
-
-.order-meta-row {
   display: flex;
-  font-size: 13px;
-  color: #6b7280;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.order-meta-label {
-  flex-shrink: 0;
+/* 单行信息 */
+.order-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-number-row {
+  margin-bottom: 2px;
+}
+
+.order-label {
+  font-size: 12px;
   color: #9ca3af;
+  flex-shrink: 0;
+  min-width: 36px;
 }
 
-.order-meta-value {
+.order-value {
+  font-size: 13px;
+  color: #374151;
   flex: 1;
-  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #374151;
 }
 
-.order-metrics-row {
+.order-number-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+/* 双列布局 */
+.order-row-dual {
   display: flex;
-  justify-content: flex-start;
-  gap: 16px;
-  margin-top: 6px;
-  font-size: 13px;
-  color: #4b5563;
+  gap: 12px;
 }
 
-.order-metric {
+.order-cell {
+  flex: 1;
   display: flex;
-  align-items: baseline;
-}
-
-.order-metric-label {
-  flex-shrink: 0;
-  color: #9ca3af;
-}
-
-.order-metric-value {
-  display: inline-block;
-  width: 7ch;
-  margin-left: 2px;
-  color: #374151;
+  align-items: center;
+  gap: 6px;
 }
 
 .order-amount {
@@ -813,13 +849,21 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.order-status-row {
+/* 操作按钮 */
+.order-card-actions {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  font-size: 13px;
-  color: #6b7280;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.order-card-actions :deep(.van-button) {
+  border-radius: 16px;
+  font-size: 12px;
+  padding: 0 12px;
+  height: 28px;
 }
 
 .order-status-label {
@@ -872,5 +916,85 @@ onUnmounted(() => {
   overflow-y: auto;
   height: calc(100% - 60px);
   background: #f9fafb;
+}
+
+/* 订单表单卡片 */
+.order-form-card {
+  margin: 0 16px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.order-form-card :deep(.van-field__label) {
+  width: 55px;
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.order-form-card :deep(.van-field__control:disabled) {
+  color: #6b7280;
+  -webkit-text-fill-color: #6b7280;
+}
+
+/* 表单行并排 */
+.form-row {
+  display: flex;
+}
+
+.form-field-half {
+  flex: 1;
+}
+
+.form-row :deep(.van-cell) {
+  padding: 10px 12px;
+}
+
+.form-row :deep(.van-field__label) {
+  width: 45px;
+  font-size: 13px;
+}
+
+.form-row :deep(.van-cell::after) {
+  left: 12px;
+  right: 12px;
+}
+
+/* 状态选择器 */
+.status-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 20px 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+}
+
+.status-selector :deep(.van-tag) {
+  padding: 8px 20px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.status-arrow {
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+/* 表单操作按钮 */
+.form-actions {
+  margin: 16px;
+}
+
+.form-actions :deep(.van-button) {
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 </style>

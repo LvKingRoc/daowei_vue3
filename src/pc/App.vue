@@ -14,12 +14,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Header from '@/pc/components/layout/Header.vue';
 import Menu from '@/pc/components/layout/Menu.vue';
 
 import { usePlatformAuthStore as useAuthStore } from '@/stores/platformAuth';
+import { startHeartbeat, stopHeartbeat } from '@/core/utils/heartbeat';
 
 const route = useRoute();
 const authStore = useAuthStore();
@@ -27,11 +28,30 @@ const authStore = useAuthStore();
 // 计算是否隐藏公共组件
 const hiddenCommonComponents = computed(() => route.meta.hiddenCommonComponents ?? false);
 
+// 检查是否为登录页面
+const isLoginPage = computed(() => route.path.includes('login'));
+
+// 心跳检测：非登录页面启动，登录页面停止
+watch(isLoginPage, (isLogin) => {
+  if (isLogin) {
+    stopHeartbeat();
+  } else if (authStore.token) {
+    startHeartbeat();
+  }
+}, { immediate: true });
+
 // 组件挂载时初始化认证状态
 onMounted(() => {
   if (authStore.token) {
     authStore.getUserInfo();
+    if (!isLoginPage.value) {
+      startHeartbeat();
+    }
   }
+});
+
+onUnmounted(() => {
+  stopHeartbeat();
 });
 </script>
 

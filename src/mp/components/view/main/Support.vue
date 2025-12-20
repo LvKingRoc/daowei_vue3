@@ -109,11 +109,9 @@ export default {
       this.isLoggingOut = true;
 
       try {
-        // 清除登录信息
-        localStorage.removeItem('token');
-        localStorage.removeItem('userInfo');
-        localStorage.removeItem('adminInfo');
-        localStorage.removeItem('role');
+        // 导入并使用统一的清除函数
+        const { clearAuthData } = await import('@/core/utils/authUtils');
+        clearAuthData();
 
         // 添加一个小延迟，让用户看到退出中的状态
         await new Promise(resolve => setTimeout(resolve, 800));

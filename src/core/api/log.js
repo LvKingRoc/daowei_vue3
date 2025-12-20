@@ -36,6 +36,13 @@ export const logApi = {
    */
   cleanOldLogs(days = 30) {
     return request.delete('/logs/clean', { days });
+  },
+
+  /**
+   * 清除所有登录日志
+   */
+  cleanLoginLogs() {
+    return request.delete('/logs/clean-login');
   }
 };
 

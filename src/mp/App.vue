@@ -14,8 +14,9 @@
 
 <script setup>
 import { RouterView, useRoute } from 'vue-router';
-import { computed, getCurrentInstance } from 'vue';
+import { computed, getCurrentInstance, onMounted, onUnmounted, watch } from 'vue';
 import MainLayout from './components/layout/mainLayout.vue';
+import { startHeartbeat, stopHeartbeat } from '@/core/utils/heartbeat';
 import {
   Button,
   Cell,
@@ -63,6 +64,25 @@ const isLoginPage = computed(() => {
   return route.path === '/login' || 
          route.path === '/admin/login' ||
          route.path.includes('login');
+});
+
+// 心跳检测：非登录页面启动，登录页面停止
+watch(isLoginPage, (isLogin) => {
+  if (isLogin) {
+    stopHeartbeat();
+  } else if (localStorage.getItem('token')) {
+    startHeartbeat();
+  }
+}, { immediate: true });
+
+onMounted(() => {
+  if (!isLoginPage.value && localStorage.getItem('token')) {
+    startHeartbeat();
+  }
+});
+
+onUnmounted(() => {
+  stopHeartbeat();
 });
 
 // 全局注册Vant组件

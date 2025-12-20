@@ -179,7 +179,7 @@
 
 <script setup>
 // 导入Vue核心功能、Element Plus组件、辅助库和配置文件
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import PaginationBar from '@/pc/components/common/PaginationBar.vue'
 import ConfirmDialog from '@/pc/components/common/ConfirmDialog.vue'
@@ -193,6 +193,11 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { getImageUrl } from '@/config/env.js'
 import { orderApi } from '@/core/api/order'
 import { sampleApi } from '@/core/api/sample'
+import { saveDraft, getDraft, clearDraft, hasDraft, getDraftInfo } from '@/core/utils/formDraft'
+import { ElMessageBox } from 'element-plus'
+
+// 草稿配置
+const DRAFT_NAME = 'pc_order'
 
 // --- 状态定义 ---
 
@@ -447,6 +452,7 @@ const validateAndSave = async () => {
     })
     if (!result.success) return
 
+    clearDraft(DRAFT_NAME)  // 提交成功后清除草稿
     showDialog.value = false
     await loadOrders() // 重新加载数据
   } catch (error) {
@@ -613,6 +619,17 @@ onMounted(async () => {
   // 加载订单列表
   await loadOrders()
 })
+
+// 自动保存草稿（仅新增模式）
+watch(
+  () => ({ ...formData.value }),
+  (newData) => {
+    if (!newData.id && showDialog.value) {
+      saveDraft(DRAFT_NAME, newData, { isEdit: false })
+    }
+  },
+  { deep: true }
+)
 </script>
 
 <style scoped>

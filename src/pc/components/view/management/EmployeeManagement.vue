@@ -120,7 +120,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { ElMessage, ElConfigProvider } from 'element-plus';
 import PaginationBar from '@/pc/components/common/PaginationBar.vue';
 import ConfirmDialog from '@/pc/components/common/ConfirmDialog.vue';
@@ -130,6 +130,11 @@ import dayjs from 'dayjs';
 import { getPinyin, getPinyinInitials } from '@/core/utils/pinyin';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import { employeeApi } from '@/core/api/employee';
+import { saveDraft, getDraft, clearDraft, hasDraft, getDraftInfo } from '@/core/utils/formDraft';
+import { ElMessageBox } from 'element-plus';
+
+// 草稿配置
+const DRAFT_NAME = 'pc_employee';
 
 // ========== 类型定义 ==========
 
@@ -390,7 +395,7 @@ const handleJumpPage = () => {
 /**
  * 显示新增员工弹窗
  */
-const showAddDialog = () => {
+const showAddDialog = async () => {
   isEditMode.value = false;
   formData.value = {
     id: 0,
@@ -401,6 +406,25 @@ const showAddDialog = () => {
     idCard: '',
     hireDate: ''
   };
+  
+  // 检查是否有草稿
+  if (hasDraft(DRAFT_NAME, { isEdit: false })) {
+    const draftInfo = getDraftInfo(DRAFT_NAME);
+    try {
+      await ElMessageBox.confirm(
+        `${draftInfo?.timeAgo || '之前'}有未保存的内容，是否恢复？`,
+        '发现未保存的草稿',
+        { confirmButtonText: '恢复草稿', cancelButtonText: '放弃草稿', type: 'info' }
+      );
+      const draft = getDraft(DRAFT_NAME, { isEdit: false });
+      if (draft) {
+        formData.value = { ...formData.value, ...draft };
+      }
+    } catch {
+      clearDraft(DRAFT_NAME);
+    }
+  }
+  
   showDialog.value = true;
 };
 
@@ -483,6 +507,7 @@ const submitForm = async () => {
     });
     if (!result.success) return;
 
+    clearDraft(DRAFT_NAME);  // 提交成功后清除草稿
     await loadEmployees(); // 成功后刷新列表
     showDialog.value = false; // 关闭弹窗
   } catch (error) {
@@ -497,6 +522,17 @@ const submitForm = async () => {
 
 
 // ========== 生命周期钩子 ==========
+
+// 自动保存草稿（仅新增模式）
+watch(
+  () => ({ ...formData.value }),
+  (newData) => {
+    if (!newData.id && showDialog.value && !isEditMode.value) {
+      saveDraft(DRAFT_NAME, newData, { isEdit: false });
+    }
+  },
+  { deep: true }
+);
 
 /**
  * 组件挂载后执行初始化操作

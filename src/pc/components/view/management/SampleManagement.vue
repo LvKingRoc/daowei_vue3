@@ -192,6 +192,11 @@ import { getImageUrl as getBaseImageUrl } from '@/config/env.js';
 import { useRouter, useRoute } from 'vue-router';
 // 确保只导入需要的函数和常量
 import { compressImage, validateImageFile, blobToFile, SAMPLE_COMPRESSION_OPTIONS } from '@/core/tools/ImageCompressor.js';
+import { saveDraft, getDraft, clearDraft, hasDraft, getDraftInfo } from '@/core/utils/formDraft';
+import { ElMessageBox } from 'element-plus';
+
+// 草稿配置
+const DRAFT_NAME = 'pc_sample';
 
 const router = useRouter();
 const route = useRoute();
@@ -466,8 +471,27 @@ const resetDialogState = () => {
 /**
  * 点击"添加"按钮
  */
-const addItem = () => {
+const addItem = async () => {
   resetDialogState();
+  
+  // 检查是否有草稿
+  if (hasDraft(DRAFT_NAME, { isEdit: false })) {
+    const draftInfo = getDraftInfo(DRAFT_NAME);
+    try {
+      await ElMessageBox.confirm(
+        `${draftInfo?.timeAgo || '之前'}有未保存的内容，是否恢复？`,
+        '发现未保存的草稿',
+        { confirmButtonText: '恢复草稿', cancelButtonText: '放弃草稿', type: 'info' }
+      );
+      const draft = getDraft(DRAFT_NAME, { isEdit: false });
+      if (draft) {
+        dialogState.formData = { ...getDefaultFormData(), ...draft };
+      }
+    } catch {
+      clearDraft(DRAFT_NAME);
+    }
+  }
+  
   dialogState.visible = true;
 };
 
@@ -495,7 +519,7 @@ const editItem = async (item) => {
  */
 const addOrder = (row) => {
   router.push({
-    path: '/admin/management/orderManagement',
+    path: '/admin/management/order',
     query: { sampleId: row.id }
   });
 };
@@ -628,6 +652,7 @@ const submitForm = async () => {
     });
     if (!result.success) return;
 
+    clearDraft(DRAFT_NAME);  // 提交成功后清除草稿
     dialogState.visible = false;
     await loadItems(); // 重新加载列表以显示最新数据
   } catch (e) {
@@ -657,10 +682,21 @@ const unwatchRoute = watch(
   () => route.path,
   async (newPath) => {
     // 当从其他页面切换到本页面时，重新加载数据
-    if (newPath === '/admin/management/SampleManagement') {
+    if (newPath === '/admin/management/sample') {
       await loadItems();
     }
   }
+);
+
+// 自动保存草稿（仅新增模式）
+watch(
+  () => ({ ...dialogState.formData }),
+  (newData) => {
+    if (!newData.id && dialogState.visible) {
+      saveDraft(DRAFT_NAME, newData, { isEdit: false });
+    }
+  },
+  { deep: true }
 );
 
 onMounted(() => {

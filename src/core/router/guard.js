@@ -2,6 +2,7 @@
  * 统一路由守卫工具
  * PC端和MP端共用
  */
+import { clearAuthAndGetLoginPath } from '@/core/utils/authUtils';
 
 // 获取认证数据
 export const getAuthData = () => ({
@@ -41,17 +42,8 @@ export const isTokenExpiringSoon = (token) => {
   return Date.now() >= (expirationTime - bufferTime);
 };
 
-/**
- * 清除认证数据并返回登录页路径
- * @param {string} role 用户角色
- * @returns {string} 登录页路径
- */
-export const clearAuthAndGetLoginPath = (role) => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('role');
-  localStorage.removeItem('username');
-  return role === 'admin' ? '/admin/login' : '/login';
-};
+// 重新导出以保持兼容性
+export { clearAuthAndGetLoginPath };
 
 // 默认重定向路径
 export const defaultRedirects = {

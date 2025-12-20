@@ -46,6 +46,20 @@ export const getImageUrl = (path) => {
 };
 
 /**
+ * 获取缩略图URL（压缩后的图片，减少流量消耗）
+ * @param {string} path 图片路径
+ * @param {number} size 缩略图尺寸（默认80）
+ */
+export const getThumbnailUrl = (path, size = 80) => {
+  if (!path) return '';
+  // 从路径中提取文件名
+  const fileName = path.split('/').pop();
+  const backendUrl = getBackEndUrl();
+  const thumbPath = `/sampleImage/thumb/${fileName}?size=${size}`;
+  return backendUrl ? `${backendUrl}${thumbPath}` : thumbPath;
+};
+
+/**
  * 后端代理API路径（第三方API通过后端代理访问）
  */
 export const PROXY_API = {

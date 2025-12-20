@@ -2,15 +2,23 @@
   <!-- 首页容器 -->
   <div class="home-container">
     <div class="welcome-content">
-      <h1 class="welcome-title">您好，欢迎来到</h1>
-      <h1 class="welcome-main-title">深圳市道威塑胶五金制品有限公司管理系统</h1>
+      <h1 class="welcome-greeting">您好，<span class="user-name">{{ userName }}</span></h1>
+      <h1 class="welcome-main-title">欢迎使用 <span class="system-name">道威管理系统</span></h1>
       <h2 class="welcome-subtitle">请点击左侧菜单栏进入系统</h2>
     </div>
   </div>
 </template>
 
 <script setup>
-// 可以根据需要添加特定的逻辑
+import { computed } from 'vue';
+import { usePlatformAuthStore } from '@/stores/platformAuth';
+
+const authStore = usePlatformAuthStore();
+
+// 获取用户显示名称
+const userName = computed(() => {
+  return authStore.name || authStore.username || '用户';
+});
 </script>
 
 <style scoped>
@@ -31,20 +39,30 @@
   max-width: 800px;
 }
 
-/* 欢迎标题样式 */
-.welcome-title {
-  font-size: 32px;
-  color: #555;
+/* 欢迎问候语样式 */
+.welcome-greeting {
+  font-size: 28px;
+  color: #374151;
   font-weight: normal;
-  margin-bottom: 10px;
+  margin-bottom: 16px;
+}
+
+.user-name {
+  color: #2563eb;
+  font-weight: 600;
 }
 
 /* 主标题样式 */
 .welcome-main-title {
-  font-size: 42px;
+  font-size: 28px;
+  color: #4b5563;
+  font-weight: normal;
+  margin-bottom: 30px;
+}
+
+.system-name {
   color: #1a5276;
   font-weight: bold;
-  margin-bottom: 30px;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
