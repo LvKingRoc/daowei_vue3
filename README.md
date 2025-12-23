@@ -1,182 +1,176 @@
-# 道威Vue3项目
+# 道威管理系统 - 前端
 
-## 项目愿景
-道威Vue3项目旨在打造一套高效、灵活、多端适配的企业级应用系统，满足现代企业在客户管理、订单处理、资源分配等方面的需求，同时提供丰富的实用工具集，提升工作效率。
+> 基于 Vue 3 的企业管理系统前端，支持 PC 端和移动端双平台
 
-## 系统概述
-本系统是一个基于Vue 3的道威多端应用解决方案，采用"一套代码、多端适配"的开发理念，通过统一的核心业务逻辑和差异化的UI呈现，实现PC端和移动端的协同工作。系统包含用户管理、订单管理、客户管理、样品管理等功能，并集成了多种实用工具，如图像压缩、OCR识别、AI工具、ZIP文件处理等。
+## 技术栈
 
-## 核心价值
-1. **提升管理效率**：通过数字化流程和智能工具，简化企业内部管理流程
-2. **多端协同**：支持PC端和移动端，满足不同场景的使用需求
-3. **安全稳定**：采用安全的认证机制和数据处理流程
-4. **灵活扩展**：模块化设计使系统易于扩展和定制
+| 类别 | 技术 |
+|------|------|
+| 框架 | Vue 3 (Composition API) |
+| 构建 | Vite 5 |
+| 状态管理 | Pinia |
+| 路由 | Vue Router 4 |
+| UI组件 | Element Plus (PC) / Vant 4 (移动端) |
+| HTTP | Axios |
+| 工具库 | dayjs, xlsx, pinyin-pro, jszip, html2canvas |
 
-## 技术架构
+## 项目结构
 
-### 总体架构
 ```
-├── 表现层：Vue 3组件 (PC/移动端独立实现)
-├── 业务层：业务逻辑和服务 (共享核心)
-├── 数据层：API接口和数据处理 (统一接口)
-└── 基础设施：工具类、配置和公共服务
+src/
+├── pc/                         # PC端代码
+│   ├── components/
+│   │   ├── layout/             # Header.vue, Menu.vue
+│   │   ├── common/             # PaginationBar, ConfirmDialog
+│   │   └── view/
+│   │       ├── main/           # Home (数据看板)
+│   │       ├── management/     # 业务管理模块
+│   │       └── tools/          # 工具集
+│   ├── router/
+│   └── App.vue
+├── mp/                         # 移动端代码
+│   ├── components/
+│   │   ├── layout/             # mainLayout, TabBar
+│   │   └── view/
+│   │       ├── main/           # Home, Support
+│   │       ├── management/     # 业务管理模块
+│   │       └── tools/          # 工具集
+│   ├── router/
+│   └── App.vue
+├── core/                       # 共享核心代码
+│   ├── api/                    # API封装
+│   │   ├── auth.js             # 认证接口
+│   │   ├── customer.js         # 客户接口
+│   │   ├── employee.js         # 员工接口
+│   │   ├── order.js            # 订单接口
+│   │   ├── sample.js           # 样品接口
+│   │   ├── dashboard.js        # 看板接口
+│   │   ├── log.js              # 操作日志接口
+│   │   └── user.js             # 用户接口
+│   ├── utils/                  # 工具函数
+│   │   ├── notification.js     # SSE实时通知
+│   │   ├── formDraft.js        # 表单草稿保存
+│   │   ├── heartbeat.js        # 心跳检测
+│   │   ├── pinyin.js           # 拼音搜索
+│   │   ├── request.js          # Axios封装
+│   │   ├── ResponseHandler.js  # 响应处理
+│   │   ├── authUtils.js        # 认证工具
+│   │   ├── common.js           # 通用工具
+│   │   ├── device.js           # 设备检测
+│   │   └── preferences.js      # 用户偏好
+│   ├── tools/                  # 工具类库
+│   │   ├── ImageCompressor.js  # 图片压缩
+│   │   ├── ImageToText.js      # OCR识别
+│   │   ├── CreateZIP.js        # ZIP创建
+│   │   ├── ExtractZIP.js       # ZIP解压
+│   │   ├── FileToPdfConverter.js # PDF转换
+│   │   └── AllAI.js            # AI工具
+│   └── router/
+│       └── guard.js            # 路由守卫
+├── config/
+│   └── env.js                  # 环境配置
+└── stores/
+    └── platformAuth.js         # 认证状态
 ```
 
-### 技术栈
-- **前端框架**: Vue 3 + TypeScript
-- **构建工具**: Vite
-- **状态管理**: Pinia
-- **路由管理**: Vue Router
-- **UI组件库**: 
-  - PC端: Element Plus
-  - 移动端: Vant
-- **HTTP客户端**: Axios
-- **工具库**: XLSX, JSZip, PDF.js, html2canvas, jsPDF等
+## 功能模块
 
-### 技术选型理由
-1. **Vue 3 + TypeScript**
-   - 采用组合式API提高代码复用性和可维护性
-   - TypeScript增强代码健壮性和开发体验
-   - 优秀的性能和小巧的体积
+### 业务管理 (PC + 移动端)
 
-2. **Vite构建工具**
-   - 极速的开发服务器启动
-   - 优化的构建过程，生产环境下更小的包体积
-   - 丰富的插件生态
+| 模块 | 功能 |
+|------|------|
+| **样品管理** | 型号/色号/图片/单价/客户关联、批量删除、Excel导出 |
+| **订单管理** | 订单创建/编辑/状态流转、批量删除、Excel导出、实时同步 |
+| **客户管理** | 客户信息/多地址/多联系人 |
+| **员工管理** | 员工通讯录 |
+| **用户管理** | 系统用户管理 |
+| **操作日志** | 系统操作记录查询 (仅PC) |
 
-3. **Element Plus & Vant**
-   - 分别针对PC端和移动端优化的组件库
-   - 丰富的组件覆盖各种界面需求
-   - 良好的定制性和主题系统
+### 工具集 (PC + 移动端)
 
-4. **Pinia状态管理**
-   - 轻量级状态管理方案
-   - TypeScript友好
-   - 更简洁的API和更好的开发体验
+| 工具 | 功能 |
+|------|------|
+| **图片压缩** | 批量图片压缩、质量调节、格式转换 |
+| **图片识别** | OCR文字识别（百度AI） |
+| **创建ZIP** | 多文件打包压缩下载 |
+| **解压ZIP** | ZIP文件在线解压 |
+| **AI工具** | 集成多个AI对话入口 |
 
-## 系统功能
+### 数据看板
 
-https://gitee.com/LvKingRoc/picture/raw/master/function/all-function.jpg
+- 总待收款金额
+- 近30天订单数量
+- 客户/样品总数
+- 订单状态分布图表
+- 生产进度跟踪
 
-### 认证系统
-- 用户登录
-- 管理员登录
-- 权限管理
+## 特色功能
 
-### 管理模块
-- 用户管理
-- 客户管理
-- 订单管理
-- 样品管理
-- 员工管理
+### SSE实时数据同步
+多用户同时操作时，数据变更自动推送：
+1. 用户A修改订单 → 后端广播 `order_sync`
+2. 用户B页面自动更新数据 + 弹窗提示
+3. 无需刷新页面
 
-### 工具集
-- 图像压缩
-- 图像文本识别(OCR)
-- ZIP文件创建与提取
-- PDF转换
-- AI辅助工具
+### 批量操作
+- 批量选择删除（翻页后选中状态保持）
+- Excel导出（选中项或全部）
 
-## 多端支持
+### 表单草稿
+- 新增表单自动保存到 localStorage
+- 24小时过期
+- 下次打开自动恢复
 
-PC端图：https://gitee.com/LvKingRoc/picture/raw/master/home/MB-home.jpg
+### 拼音搜索
+- 支持拼音首字母模糊搜索
+- 如输入"zs"可匹配"张三"
 
-MB端图：https://gitee.com/LvKingRoc/picture/raw/master/home/PC-home.jpg
+### 图片处理
+- 上传前自动压缩
+- 支持缩略图生成
+- 拍照/相册选择（移动端）
 
-PC端与移动端界面对比
-
-### PC端
-针对桌面环境优化的完整界面，提供全面的功能和高效的操作体验。采用Element Plus组件库，响应式设计适配不同分辨率屏幕。
-
-### 移动端
-针对移动设备优化的轻量级界面，提供关键功能的便捷访问。采用Vant组件库，触控友好的界面设计，适合随时随地进行基本业务操作。
-
-## 架构设计特点
-
-### 多页面应用
-系统采用多页面应用结构，为PC端和移动端提供独立入口：
-- `index.html`: 主入口
-- `pc.html`: PC端入口
-- `mp.html`: 移动端入口
-
-### 模块化设计
-系统按功能垂直划分模块，每个模块包含完整的视图、路由和状态管理，核心代码结构:
-- `/src/pc`: PC端代码
-- `/src/mp`: 移动端代码
-- `/src/core`: 共享核心逻辑
-- `/src/config`: 环境配置
-- `/src/stores`: 全局状态管理
-
-### 前后端分离
-采用完全的前后端分离架构，前端通过API与后端通信，提高系统灵活性和可扩展性。
-
-### 共享核心逻辑
-PC端和移动端共享核心业务逻辑和工具函数，减少冗余代码，提高开发效率。
-
-
-### 企业内部管理系统
-- 人员管理
-- 客户关系管理
-- 订单处理
-- 样品管理
-
-### 工具平台
-- 文档处理
-- 图像处理
-- 数据转换
-- AI辅助工具
-
-## 安装与运行
+## 快速开始
 
 ### 环境要求
-- Node.js 18.x 或更高版本
-- npm 8.x 或更高版本
+- Node.js 18+
+- npm 8+
 
-### 安装依赖
+### 安装运行
 ```bash
+# 1. 安装依赖
 npm install
-```
 
-### 开发模式运行
-```bash
-npm run dev
-```
+# 2. 复制环境变量模板
+cp .env.example .env.development
 
-### 构建生产版本
-```bash
+# 3. 编辑 .env.development，填写后端地址等配置
+
+# 4. 开发模式运行
+npm run dev      # 端口662
+
+# 5. 构建生产版本
 npm run build
 ```
 
-### 预览生产构建
-```bash
-npm run preview
+### 环境变量说明
+```env
+VITE_BACKEND_HOST=localhost    # 后端服务器地址
+VITE_BACKEND_PORT=661          # 后端服务器端口
+VITE_API_BASE_PATH=/api        # API基础路径
 ```
 
-## 配置说明
-项目配置位于 `/src/config/env.ts`，包含:
-- 服务器地址和端口
-- API密钥
-- 环境变量
-- 请求配置
+> ⚠️ **注意**: `.env.development` 和 `.env.production` 包含敏感信息，已加入 `.gitignore`，不会被提交到git
 
-## 未来规划
+## 多端入口
 
-### 近期目标
-- 功能完善与bug修复
-- 性能优化与用户体验提升
-- 更全面的文档和使用指南
+| 入口 | URL | 说明 |
+|------|-----|------|
+| PC端 | /pc.html | Element Plus UI |
+| 移动端 | /mp.html | Vant UI |
+| 主入口 | /index.html | 自动检测设备跳转 |
 
-### 中期规划
-- 更多业务模块的扩展
-- 更深度的AI工具集成
-- 小程序和App版本开发
+## 联系方式
 
-### 长期愿景
-- 建立完整的企业管理生态
-- 提供定制化解决方案
-- 实现更智能的业务流程自动化
-
-
-## 详细文档
-- PC端详情请参考: [PC-readme.md](./PC-readme.md)
-- 移动端详情请参考: [MB-readme.md](./MB-readme.md) 
+- **维护者**: 慕容雪歌
+- **邮箱**: 1813197353@qq.com 

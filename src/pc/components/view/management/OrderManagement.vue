@@ -10,14 +10,30 @@
       </el-select>
       <el-button type="primary" @click="handleSearch">搜索</el-button>
       <el-button @click="resetSearch">重置</el-button>
+      <el-button type="danger" @click="batchDelete" :disabled="selectedRows.length === 0">
+        批量删除 {{ selectedRows.length > 0 ? `(${selectedRows.length})` : '' }}
+      </el-button>
+      <el-button type="info" @click="exportToExcel">
+        <el-icon style="margin-right: 4px;"><Download /></el-icon>导出Excel
+      </el-button>
     </div>
 
     <!-- 表格区域 -->
     <div class="table-container">
-      <el-table :data="currentPageItems" style="width: 100%" stripe border size="small" v-loading="loading"
+      <el-table 
+        ref="tableRef"
+        :data="currentPageItems" 
+        style="width: 100%" 
+        stripe 
+        border 
+        size="small" 
+        v-loading="loading"
         :cell-style="{ padding: '12px 8px' }"
         :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: 'bold' }"
-        @sort-change="handleSortChange">
+        row-key="id"
+        @sort-change="handleSortChange"
+        @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" align="center" :reserve-selection="true" />
         <el-table-column prop="orderNumber" label="订单号" min-width="120" align="center" sortable="custom" />
         <el-table-column prop="model" label="型号" min-width="120" align="center" sortable="custom" />
         <el-table-column prop="colorCode" label="颜色" min-width="100" align="center" sortable="custom">
@@ -179,7 +195,7 @@
 
 <script setup>
 // 导入Vue核心功能、Element Plus组件、辅助库和配置文件
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import PaginationBar from '@/pc/components/common/PaginationBar.vue'
 import ConfirmDialog from '@/pc/components/common/ConfirmDialog.vue'
@@ -188,7 +204,8 @@ import { handleResponse, handleError } from '@/core/utils/ResponseHandler'
 import { useRoute } from 'vue-router'
 import { fuzzySearch } from '@/core/utils/pinyin'
 import dayjs from 'dayjs'
-import { ArrowDown, Picture } from '@element-plus/icons-vue'
+import { ArrowDown, Picture, Download } from '@element-plus/icons-vue'
+import * as XLSX from 'xlsx'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { getImageUrl } from '@/config/env.js'
 import { orderApi } from '@/core/api/order'
@@ -207,6 +224,10 @@ const locale = zhCn // Element Plus组件本地化
 
 // 路由实例
 const route = useRoute()
+
+// 表格引用和选中行
+const tableRef = ref(null)
+const selectedRows = ref([])
 
 // 核心数据
 const sortedOrders = ref([]) // 存储从API获取并排序后的订单列表
@@ -467,6 +488,88 @@ const validateAndSave = async () => {
 }
 
 
+// --- 批量操作 ---
+
+/**
+ * 处理表格选择变化
+ */
+const handleSelectionChange = (rows) => {
+  selectedRows.value = rows
+}
+
+/**
+ * 批量删除
+ */
+const batchDelete = async () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择要删除的订单')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedRows.value.length} 个订单吗？`,
+      '批量删除确认',
+      { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning' }
+    )
+
+    let successCount = 0
+    let failCount = 0
+    for (const row of selectedRows.value) {
+      try {
+        await orderApi.remove(row.id)
+        successCount++
+      } catch {
+        failCount++
+      }
+    }
+
+    if (failCount === 0) {
+      ElMessage.success(`成功删除 ${successCount} 个订单`)
+    } else {
+      ElMessage.warning(`删除完成：成功 ${successCount} 个，失败 ${failCount} 个`)
+    }
+
+    selectedRows.value = []
+    await loadOrders()
+  } catch {
+    // 用户取消
+  }
+}
+
+/**
+ * 导出Excel - 有选中则导出选中项，否则导出全部
+ */
+const exportToExcel = () => {
+  const sourceData = selectedRows.value.length > 0 ? selectedRows.value : filteredOrders.value
+  
+  const data = sourceData.map(item => ({
+    '订单号': item.orderNumber || '',
+    '型号': item.model || '',
+    '颜色': item.colorCode || '',
+    '客户企业': item.companyName || '',
+    '总数量': item.totalQuantity ?? 0,
+    '总金额': item.totalAmount ?? 0,
+    '创建日期': item.createDate ? formatDate(item.createDate) : '',
+    '交货日期': item.deliveryDate ? formatDate(item.deliveryDate) : '',
+    '状态': statusMap[item.status] || item.status
+  }))
+
+  const ws = XLSX.utils.json_to_sheet(data)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '订单列表')
+
+  ws['!cols'] = [
+    { wch: 15 }, { wch: 15 }, { wch: 10 }, { wch: 20 },
+    { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }
+  ]
+
+  const exportType = selectedRows.value.length > 0 ? `选中${selectedRows.value.length}条` : '全部'
+  const fileName = `订单列表_${exportType}_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`
+  XLSX.writeFile(wb, fileName)
+  ElMessage.success(`导出成功（${exportType}，共${data.length}条）`)
+}
+
 // --- 排序逻辑 ---
 
 /**
@@ -630,6 +733,32 @@ watch(
   },
   { deep: true }
 )
+
+// SSE订单数据同步监听
+const handleOrderSync = (event) => {
+  const { action, order } = event.detail
+  if (!order || !order.id) return
+  
+  // 在列表中找到并更新该订单
+  const index = sortedOrders.value.findIndex(o => o.id === order.id)
+  if (index !== -1) {
+    // 更新列表中的订单数据
+    sortedOrders.value[index] = { ...sortedOrders.value[index], ...order }
+    ElMessage.info(`订单 ${order.orderNumber} 已被其他用户修改`)
+  } else if (action === 'create') {
+    // 新增的订单，添加到列表
+    sortedOrders.value.unshift(order)
+    ElMessage.info(`新订单 ${order.orderNumber} 已创建`)
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('order-sync', handleOrderSync)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('order-sync', handleOrderSync)
+})
 </script>
 
 <style scoped>

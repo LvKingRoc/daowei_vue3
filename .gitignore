@@ -28,3 +28,8 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+### 敏感配置文件 (不提交到git) ###
+.env.development
+.env.production
+.env.local

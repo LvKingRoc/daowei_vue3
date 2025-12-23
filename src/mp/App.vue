@@ -17,6 +17,7 @@ import { RouterView, useRoute } from 'vue-router';
 import { computed, getCurrentInstance, onMounted, onUnmounted, watch } from 'vue';
 import MainLayout from './components/layout/mainLayout.vue';
 import { startHeartbeat, stopHeartbeat } from '@/core/utils/heartbeat';
+import { connectSSE, disconnectSSE } from '@/core/utils/notification';
 import {
   Button,
   Cell,
@@ -66,12 +67,14 @@ const isLoginPage = computed(() => {
          route.path.includes('login');
 });
 
-// 心跳检测：非登录页面启动，登录页面停止
+// 心跳检测和SSE连接：非登录页面启动，登录页面停止
 watch(isLoginPage, (isLogin) => {
   if (isLogin) {
     stopHeartbeat();
+    disconnectSSE();
   } else if (localStorage.getItem('token')) {
     startHeartbeat();
+    connectSSE('mp_user_' + (localStorage.getItem('userId') || 'anonymous'));
   }
 }, { immediate: true });
 

@@ -21,6 +21,13 @@
           <van-button type="primary" size="small" class="search-button" @click="onSearch">
             搜索
           </van-button>
+          <van-button 
+            :type="batchMode ? 'warning' : 'default'" 
+            size="small" 
+            class="batch-button" 
+            @click="toggleBatchMode">
+            {{ batchMode ? '取消' : '批量' }}
+          </van-button>
         </div>
 
         <van-popup v-model:show="showSearchTypePopover" position="top" round>
@@ -48,8 +55,12 @@
           </div>
           <div v-else>
             <div v-for="item in list" :key="item.id" class="sample-item">
-            <van-swipe-cell>
-              <div class="sample-card" @click="editItem(item)">
+            <van-swipe-cell :disabled="batchMode">
+              <div class="sample-card" @click="batchMode ? toggleSelectItem(item) : editItem(item)">
+                <!-- 批量选择复选框 -->
+                <div v-if="batchMode" class="batch-checkbox" @click.stop="toggleSelectItem(item)">
+                  <van-checkbox :model-value="selectedIds.includes(item.id)" />
+                </div>
                 <div class="sample-thumb" v-if="getItemImageUrl(item)" @click.stop="previewImage(getItemImageUrl(item))">
                   <van-image
                     :src="getItemThumbnailUrl(item)"
@@ -116,9 +127,24 @@
     </div>
 
     <!-- 悬浮按钮 - 新增 -->
-    <div class="fab-button" @click="addItem">
+    <div v-if="!batchMode" class="fab-button" @click="addItem">
       <van-icon name="plus" />
     </div>
+
+    <!-- 批量操作栏 -->
+    <van-action-bar v-if="batchMode" class="batch-action-bar">
+      <van-action-bar-icon 
+        :icon="selectedIds.length === list.length ? 'passed' : 'circle'" 
+        :text="selectedIds.length === list.length ? '取消全选' : '全选'" 
+        @click="toggleSelectAll" 
+      />
+      <van-action-bar-button 
+        type="danger" 
+        :text="`删除(${selectedIds.length})`" 
+        :disabled="selectedIds.length === 0"
+        @click="batchDeleteItems" 
+      />
+    </van-action-bar>
 
     <!-- 编辑/新增弹窗 -->
     <van-popup v-model:show="showEditPopup" position="bottom" :style="{ height: '90%' }" round>
@@ -160,7 +186,7 @@
               :max-count="1" 
               :after-read="afterRead" 
               :before-delete="beforeDeleteImage"
-              capture="camera"
+              :capture="uploadCapture"
               accept="image/*"
               style="display: none;"
             />
@@ -231,12 +257,21 @@
         @cancel="showCustomerPicker = false"
       />
     </van-popup>
+
+    <!-- 图片来源选择 -->
+    <van-action-sheet
+      v-model:show="showImageSourceSheet"
+      :actions="imageSourceActions"
+      cancel-text="取消"
+      close-on-click-action
+      @select="onImageSourceSelect"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue';
-import { showToast, showDialog, showImagePreview } from 'vant';
+import { showToast, showDialog, showImagePreview, Checkbox as VanCheckbox, ActionBar as VanActionBar, ActionBarIcon as VanActionBarIcon, ActionBarButton as VanActionBarButton, ActionSheet as VanActionSheet } from 'vant';
 import { useRouter } from 'vue-router';
 import { sampleApi } from '@/core/api/sample';
 import { customerApi } from '@/core/api/customer';
@@ -270,6 +305,12 @@ const saving = ref(false);
 const uploadFile = ref(null);
 const uploaderRef = ref(null);
 const keepOriginalImage = ref(false);
+const showImageSourceSheet = ref(false);
+const uploadCapture = ref(undefined);
+const imageSourceActions = [
+  { name: '拍照', value: 'camera' },
+  { name: '从相册选择', value: 'album' }
+];
 
 const searchType = ref('model');
 const showSearchTypePopover = ref(false);
@@ -281,6 +322,10 @@ const searchTypeActions = [
 
 const showSearchBar = ref(true);
 const lastScrollTop = ref(0);
+
+// 批量删除状态
+const batchMode = ref(false);
+const selectedIds = ref([]);
 
 // 表单数据
 const formData = reactive({
@@ -546,6 +591,86 @@ const addOrder = (item) => {
   });
 };
 
+// 批量删除相关函数
+const toggleBatchMode = () => {
+  batchMode.value = !batchMode.value;
+  if (!batchMode.value) {
+    selectedIds.value = [];
+  }
+};
+
+const toggleSelectItem = (item) => {
+  const index = selectedIds.value.indexOf(item.id);
+  if (index > -1) {
+    selectedIds.value.splice(index, 1);
+  } else {
+    selectedIds.value.push(item.id);
+  }
+};
+
+const toggleSelectAll = () => {
+  if (selectedIds.value.length === list.value.length) {
+    selectedIds.value = [];
+  } else {
+    selectedIds.value = list.value.map(item => item.id);
+  }
+};
+
+const batchDeleteItems = async () => {
+  if (selectedIds.value.length === 0) {
+    showToast('请先选择要删除的样品');
+    return;
+  }
+
+  // 获取关联订单总数
+  let totalOrderCount = 0;
+  for (const id of selectedIds.value) {
+    try {
+      const response = await sampleApi.countOrders(id);
+      totalOrderCount += response.data || 0;
+    } catch {
+      // ignore
+    }
+  }
+
+  const confirmMsg = totalOrderCount > 0
+    ? `确定删除 ${selectedIds.value.length} 个样品？\n将同时删除 ${totalOrderCount} 个关联订单！`
+    : `确定删除 ${selectedIds.value.length} 个样品？`;
+
+  try {
+    await showDialog({
+      title: '批量删除确认',
+      message: confirmMsg,
+      showCancelButton: true,
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消'
+    });
+
+    let successCount = 0;
+    let failCount = 0;
+    for (const id of selectedIds.value) {
+      try {
+        await sampleApi.remove(id);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    if (failCount === 0) {
+      showToast(`成功删除 ${successCount} 个样品`);
+    } else {
+      showToast(`删除完成：成功 ${successCount}，失败 ${failCount}`);
+    }
+
+    selectedIds.value = [];
+    batchMode.value = false;
+    loadSamples();
+  } catch {
+    // 用户取消
+  }
+};
+
 const onCustomerConfirm = ({ selectedOptions }) => {
   formData.customerId = selectedOptions[0].value;
   showCustomerPicker.value = false;
@@ -559,6 +684,7 @@ const afterRead = async (file) => {
     const rawFile = file.file;
     const { blob } = await compressImage(rawFile, SAMPLE_COMPRESSION_OPTIONS);
     uploadFile.value = blobToFile(blob, rawFile.name);
+    keepOriginalImage.value = false; // 上传新图片后不再保留原图
     file.status = 'done';
     file.message = '已完成';
   } catch (error) {
@@ -574,9 +700,22 @@ const beforeDeleteImage = () => {
   return true;
 };
 
-// 触发上传
+// 触发上传 - 显示选择界面
 const triggerUpload = () => {
-  uploaderRef.value?.chooseFile();
+  showImageSourceSheet.value = true;
+};
+
+// 选择图片来源
+const onImageSourceSelect = (action) => {
+  if (action.value === 'camera') {
+    uploadCapture.value = 'camera';
+  } else {
+    uploadCapture.value = undefined;
+  }
+  // 延迟调用以确保capture属性已更新
+  setTimeout(() => {
+    uploaderRef.value?.chooseFile();
+  }, 50);
 };
 
 // 删除图片
@@ -595,8 +734,8 @@ const onSave = async () => {
       alias: (formData.alias || '').trim(),
       colorCode: (formData.colorCode || '').trim()
     };
-    // 移除旧的 image 路径，让后端处理
-    delete sampleData.image; 
+    // 保留原图路径，后端会根据是否有新文件来决定如何处理
+    // 如果有新文件上传，后端会用新路径覆盖；如果没有新文件且不清除，保持原值 
     
     const file = uploadFile.value;
     // 判断是否删除了原有图片: 编辑模式且没有新文件且文件列表为空且没有保留原图标记
@@ -641,14 +780,31 @@ watch(
   { deep: true }
 );
 
+// SSE样品数据同步监听
+const handleSampleSync = (event) => {
+  const { action, sample } = event.detail;
+  if (!sample || !sample.id) return;
+  
+  const index = list.value.findIndex(s => s.id === sample.id);
+  if (index !== -1) {
+    list.value[index] = { ...list.value[index], ...sample };
+    showToast(`样品 ${sample.model} 已被其他用户修改`);
+  } else if (action === 'create') {
+    list.value.unshift(sample);
+    showToast(`新样品 ${sample.model} 已创建`);
+  }
+};
+
 onMounted(() => {
   loadCustomers();
   loadSamples();
   window.addEventListener('scroll', handleScroll, { passive: true });
+  window.addEventListener('sample-sync', handleSampleSync);
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
+  window.removeEventListener('sample-sync', handleSampleSync);
 });
 </script>
 
@@ -956,5 +1112,32 @@ onUnmounted(() => {
 .upload-placeholder-text {
   font-size: 12px;
   color: #9ca3af;
+}
+
+/* 批量删除相关样式 */
+.batch-button {
+  border-radius: 20px;
+  padding: 0 12px;
+  margin-left: 8px;
+}
+
+.batch-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  margin-right: 8px;
+}
+
+.batch-action-bar {
+  position: fixed;
+  bottom: 50px;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.sample-list-wrapper {
+  padding-bottom: 60px;
 }
 </style>

@@ -8,14 +8,30 @@
       <el-button type="primary" @click="handleSearch" class="action-btn">搜索</el-button>
       <el-button @click="resetSearch" class="action-btn">重置</el-button>
       <el-button type="success" @click="addItem" class="action-btn">添加</el-button>
+      <el-button type="danger" @click="batchDelete" :disabled="selectedRows.length === 0" class="action-btn">
+        批量删除 {{ selectedRows.length > 0 ? `(${selectedRows.length})` : '' }}
+      </el-button>
+      <el-button type="info" @click="exportToExcel" class="action-btn">
+        <el-icon style="margin-right: 4px;"><Download /></el-icon>导出Excel
+      </el-button>
     </div>
 
     <!-- 表格区域 -->
     <div class="table-container">
-      <el-table :data="currentPageItems" style="width: 100%" stripe border size="small" v-loading="tableState.loading"
+      <el-table 
+        ref="tableRef"
+        :data="currentPageItems" 
+        style="width: 100%" 
+        stripe 
+        border 
+        size="small" 
+        v-loading="tableState.loading"
         :cell-style="{ padding: '12px 8px' }"
         :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: 'bold' }"
-        @sort-change="handleSortChange">
+        row-key="id"
+        @sort-change="handleSortChange"
+        @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" align="center" :reserve-selection="true" />
         <el-table-column prop="model" label="型号" min-width="120" align="center" sortable="custom" />
         <el-table-column prop="alias" label="别称" min-width="120" align="center" sortable="custom">
           <template #default="{ row }">
@@ -184,7 +200,8 @@ import PaginationBar from '@/pc/components/common/PaginationBar.vue';
 import ConfirmDeleteDialog from '@/pc/components/common/ConfirmDeleteDialog.vue';
 import '@/pc/components/common/management-common.css';
 import { handleResponse, handleError } from '@/core/utils/ResponseHandler';
-import { Plus, Picture } from '@element-plus/icons-vue';
+import { Plus, Picture, Download } from '@element-plus/icons-vue';
+import * as XLSX from 'xlsx';
 import { sampleApi } from '@/core/api/sample';
 import { customerApi } from '@/core/api/customer';
 import { matchesSearch } from '@/core/utils/pinyin';
@@ -202,6 +219,10 @@ const router = useRouter();
 const route = useRoute();
 
 // --- 状态管理 ---
+
+// 表格引用和选中行
+const tableRef = ref(null);
+const selectedRows = ref([]);
 
 // 搜索和排序状态
 const searchState = reactive({
@@ -401,11 +422,106 @@ const fixNullCustomers = async () => {
 // --- 事件处理 ---
 
 /**
+ * 处理表格选择变化
+ */
+const handleSelectionChange = (rows) => {
+  selectedRows.value = rows;
+};
+
+/**
+ * 批量删除
+ */
+const batchDelete = async () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择要删除的样品');
+    return;
+  }
+
+  try {
+    // 获取所有选中样品的关联订单数
+    let totalOrderCount = 0;
+    for (const row of selectedRows.value) {
+      const response = await sampleApi.countOrders(row.id);
+      totalOrderCount += response.data || 0;
+    }
+
+    const confirmMsg = totalOrderCount > 0
+      ? `确定要删除选中的 ${selectedRows.value.length} 个样品吗？\n这将同时删除 ${totalOrderCount} 个关联订单！`
+      : `确定要删除选中的 ${selectedRows.value.length} 个样品吗？`;
+
+    await ElMessageBox.confirm(confirmMsg, '批量删除确认', {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    });
+
+    // 执行批量删除
+    let successCount = 0;
+    let failCount = 0;
+    for (const row of selectedRows.value) {
+      try {
+        await sampleApi.remove(row.id);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    if (failCount === 0) {
+      ElMessage.success(`成功删除 ${successCount} 个样品`);
+    } else {
+      ElMessage.warning(`删除完成：成功 ${successCount} 个，失败 ${failCount} 个`);
+    }
+
+    selectedRows.value = [];
+    await loadItems();
+  } catch {
+    // 用户取消
+  }
+};
+
+/**
+ * 导出Excel - 有选中则导出选中项，否则导出全部
+ */
+const exportToExcel = () => {
+  // 优先导出选中项，否则导出全部过滤后的数据
+  const sourceData = selectedRows.value.length > 0 ? selectedRows.value : filteredItems.value;
+  
+  const data = sourceData.map(item => ({
+    '型号': item.model || '',
+    '别称': item.alias || '',
+    '颜色': item.colorCode || '',
+    '客户企业': item.companyName || '',
+    '库存': item.stock ?? 0,
+    '单价(元)': item.unitPrice ?? 0
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '样品列表');
+
+  // 设置列宽
+  ws['!cols'] = [
+    { wch: 20 }, // 型号
+    { wch: 15 }, // 别称
+    { wch: 12 }, // 颜色
+    { wch: 20 }, // 客户企业
+    { wch: 10 }, // 库存
+    { wch: 12 }  // 单价
+  ];
+
+  const exportType = selectedRows.value.length > 0 ? `选中${selectedRows.value.length}条` : '全部';
+  const fileName = `样品列表_${exportType}_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+  ElMessage.success(`导出成功（${exportType}，共${data.length}条）`);
+};
+
+/**
  * 处理排序变化
  */
 const handleSortChange = ({ prop, order }) => {
   sortState.column = prop;
-  sortState.order = order || '';
+  sortState.order = order || ''
 };
 
 /**
@@ -699,13 +815,31 @@ watch(
   { deep: true }
 );
 
+// SSE样品数据同步监听
+const handleSampleSync = (event) => {
+  const { action, sample } = event.detail;
+  if (!sample || !sample.id) return;
+  
+  // 在列表中找到并更新该样品
+  const index = tableState.items.findIndex(s => s.id === sample.id);
+  if (index !== -1) {
+    tableState.items[index] = { ...tableState.items[index], ...sample, _v: Date.now() };
+    ElMessage.info(`样品 ${sample.model} 已被其他用户修改`);
+  } else if (action === 'create') {
+    tableState.items.unshift(sample);
+    ElMessage.info(`新样品 ${sample.model} 已创建`);
+  }
+};
+
 onMounted(() => {
   loadCustomerOptions();
   loadItems();
+  window.addEventListener('sample-sync', handleSampleSync);
 });
 
 onBeforeUnmount(() => {
-  unwatchRoute(); // 组件卸载时停止监听
+  unwatchRoute();
+  window.removeEventListener('sample-sync', handleSampleSync);
 });
 </script>
 

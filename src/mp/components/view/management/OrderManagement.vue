@@ -23,6 +23,13 @@
           <van-button type="primary" size="small" class="search-button" @click="onSearch">
             搜索
           </van-button>
+          <van-button 
+            :type="batchMode ? 'warning' : 'default'" 
+            size="small" 
+            class="batch-button" 
+            @click="toggleBatchMode">
+            {{ batchMode ? '取消' : '批量' }}
+          </van-button>
         </div>
 
         <van-popup v-model:show="showSearchTypePopover" position="top" round>
@@ -54,8 +61,12 @@
       @load="onLoad"
     >
         <div v-for="item in list" :key="item.id" class="order-item">
-          <van-swipe-cell>
-            <div class="order-card" @click="editOrder(item)">
+          <van-swipe-cell :disabled="batchMode">
+            <div class="order-card" @click="batchMode ? toggleSelectItem(item) : editOrder(item)">
+              <!-- 批量选择复选框 -->
+              <div v-if="batchMode" class="batch-checkbox" @click.stop="toggleSelectItem(item)">
+                <van-checkbox :model-value="selectedIds.includes(item.id)" />
+              </div>
               <!-- 左侧：图片 + 状态 -->
               <div class="order-left">
                 <div class="order-thumb" v-if="item.image" @click.stop="previewImage(item.image)">
@@ -130,6 +141,21 @@
           </van-swipe-cell>
         </div>
       </van-list>
+
+    <!-- 批量操作栏 -->
+    <van-action-bar v-if="batchMode" class="batch-action-bar">
+      <van-action-bar-icon 
+        :icon="selectedIds.length === list.length ? 'passed' : 'circle'" 
+        :text="selectedIds.length === list.length ? '取消全选' : '全选'" 
+        @click="toggleSelectAll" 
+      />
+      <van-action-bar-button 
+        type="danger" 
+        :text="`删除(${selectedIds.length})`" 
+        :disabled="selectedIds.length === 0"
+        @click="batchDeleteItems" 
+      />
+    </van-action-bar>
     
     <!-- 编辑/新增弹窗 -->
     <van-popup v-model:show="showEditPopup" position="bottom" :style="{ height: '80%' }" round>
@@ -245,7 +271,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, onActivated, watch } from 'vue';
-import { showToast, showDialog, showImagePreview } from 'vant';
+import { showToast, showDialog, showImagePreview, Checkbox as VanCheckbox, ActionBar as VanActionBar, ActionBarIcon as VanActionBarIcon, ActionBarButton as VanActionBarButton } from 'vant';
 import { useRoute } from 'vue-router';
 import { orderApi } from '@/core/api/order';
 import { sampleApi } from '@/core/api/sample';
@@ -282,6 +308,10 @@ const sortType = ref('default');
 
 const showSearchBar = ref(true);
 const lastScrollTop = ref(0);
+
+// 批量删除状态
+const batchMode = ref(false);
+const selectedIds = ref([]);
 
 const searchType = ref('orderNumber');
 const showSearchTypePopover = ref(false);
@@ -524,6 +554,71 @@ const deleteOrder = (item) => {
   }).catch(() => {});
 };
 
+// 批量删除相关函数
+const toggleBatchMode = () => {
+  batchMode.value = !batchMode.value;
+  if (!batchMode.value) {
+    selectedIds.value = [];
+  }
+};
+
+const toggleSelectItem = (item) => {
+  const index = selectedIds.value.indexOf(item.id);
+  if (index > -1) {
+    selectedIds.value.splice(index, 1);
+  } else {
+    selectedIds.value.push(item.id);
+  }
+};
+
+const toggleSelectAll = () => {
+  if (selectedIds.value.length === list.value.length) {
+    selectedIds.value = [];
+  } else {
+    selectedIds.value = list.value.map(item => item.id);
+  }
+};
+
+const batchDeleteItems = async () => {
+  if (selectedIds.value.length === 0) {
+    showToast('请先选择要删除的订单');
+    return;
+  }
+
+  try {
+    await showDialog({
+      title: '批量删除确认',
+      message: `确定删除 ${selectedIds.value.length} 个订单？`,
+      showCancelButton: true,
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消'
+    });
+
+    let successCount = 0;
+    let failCount = 0;
+    for (const id of selectedIds.value) {
+      try {
+        await orderApi.remove(id);
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    if (failCount === 0) {
+      showToast(`成功删除 ${successCount} 个订单`);
+    } else {
+      showToast(`删除完成：成功 ${successCount}，失败 ${failCount}`);
+    }
+
+    selectedIds.value = [];
+    batchMode.value = false;
+    onRefresh();
+  } catch {
+    // 用户取消
+  }
+};
+
 const onSave = async () => {
   try {
     const payload = { ...formData };
@@ -638,11 +733,30 @@ const handleSampleIdFromRoute = async () => {
   }
 };
 
+// SSE订单数据同步监听
+const handleOrderSync = (event) => {
+  const { action, order } = event.detail;
+  if (!order || !order.id) return;
+  
+  // 在列表中找到并更新该订单
+  const index = list.value.findIndex(o => o.id === order.id);
+  if (index !== -1) {
+    // 更新列表中的订单数据
+    list.value[index] = { ...list.value[index], ...order };
+    showToast(`订单 ${order.orderNumber} 已被其他用户修改`);
+  } else if (action === 'create') {
+    // 新增的订单，添加到列表
+    list.value.unshift(order);
+    showToast(`新订单 ${order.orderNumber} 已创建`);
+  }
+};
+
 onMounted(async () => {
   await handleSampleIdFromRoute();
   onRefresh();
   window.addEventListener('scroll', handleScroll, { passive: true });
   window.addEventListener('mp-refresh', onRefresh);
+  window.addEventListener('order-sync', handleOrderSync);
 });
 
 // KeepAlive缓存时，每次激活都检查是否有新的sampleId
@@ -664,6 +778,7 @@ watch(
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
   window.removeEventListener('mp-refresh', onRefresh);
+  window.removeEventListener('order-sync', handleOrderSync);
 });
 </script>
 
@@ -996,5 +1111,28 @@ onUnmounted(() => {
   font-size: 16px;
   font-weight: 600;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* 批量删除相关样式 */
+.batch-button {
+  border-radius: 20px;
+  padding: 0 12px;
+  margin-left: 8px;
+}
+
+.batch-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  margin-right: 8px;
+}
+
+.batch-action-bar {
+  position: fixed;
+  bottom: 50px;
+  left: 0;
+  right: 0;
+  z-index: 100;
 }
 </style>

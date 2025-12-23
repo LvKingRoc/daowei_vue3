@@ -21,6 +21,7 @@ import Menu from '@/pc/components/layout/Menu.vue';
 
 import { usePlatformAuthStore as useAuthStore } from '@/stores/platformAuth';
 import { startHeartbeat, stopHeartbeat } from '@/core/utils/heartbeat';
+import { connectSSE, disconnectSSE } from '@/core/utils/notification';
 
 const route = useRoute();
 const authStore = useAuthStore();
@@ -31,12 +32,14 @@ const hiddenCommonComponents = computed(() => route.meta.hiddenCommonComponents 
 // 检查是否为登录页面
 const isLoginPage = computed(() => route.path.includes('login'));
 
-// 心跳检测：非登录页面启动，登录页面停止
+// 心跳检测和SSE连接：非登录页面启动，登录页面停止
 watch(isLoginPage, (isLogin) => {
   if (isLogin) {
     stopHeartbeat();
+    disconnectSSE();
   } else if (authStore.token) {
     startHeartbeat();
+    connectSSE(authStore.userId || 'pc_user');
   }
 }, { immediate: true });
 
