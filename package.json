@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
@@ -50,11 +52,13 @@
     "@types/node": "^22.14.0",
     "@vitejs/plugin-vue": "^5.2.4",
     "@vue/tsconfig": "^0.7.0",
+    "jsdom": "^28.0.0",
     "npm-run-all2": "^7.0.2",
     "prettier": "3.5.3",
     "typescript": "~5.8.0",
     "vite": "^6.3.5",
     "vite-plugin-vue-devtools": "^7.7.2",
+    "vitest": "^4.0.18",
     "vue-tsc": "^2.2.8"
   }
 }
