@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { getApiBase, REQUEST_CONFIG } from '@/config/env';
 import ResponseHandler from './ResponseHandler';
+import { clearAuthData, getLoginPath } from '@/core/utils/authUtils';
 // 动态获取router，支持PC和MP双端
 let router = null;
 const getRouter = async () => {
@@ -74,8 +75,6 @@ const showMessage = (message, type = 'error') => {
     }).catch(() => alert(message));
   }
 };
-
-import { clearAuthData, getLoginPath } from '@/core/utils/authUtils';
 
 // 处理认证错误并跳转
 const handleAuthError = (message, reason) => {
