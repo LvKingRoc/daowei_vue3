@@ -9,8 +9,8 @@ export default defineConfig(({ mode }) => {
   
   // 开发环境代理目标：优先使用环境变量，否则默认 127.0.0.1
   const backendHost = env.VITE_BACKEND_HOST || '127.0.0.1'
-  const backendPort = env.VITE_BACKEND_PORT || '661'
-  const frontendPort = Number(env.VITE_FRONTEND_PORT) || 662
+  const backendPort = env.VITE_BACKEND_PORT || '8888'
+  const frontendPort = Number(env.VITE_FRONTEND_PORT) || 80
 
   return {
     plugins: [
